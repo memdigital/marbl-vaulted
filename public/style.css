@@ -200,10 +200,26 @@ textarea.vaulted-textarea:focus {
   align-items: center;
 }
 
-.btn--copied {
-  background: var(--marbl-gold) !important;
+/* Copied state - solid ember, locked. Suppress the .btn--fill-up ::before
+   scaleY hover fill and the icon rotation so the button stays put. */
+.btn.btn--copied,
+.btn.btn--copied:hover {
+  background: var(--marbl-ember) !important;
   color: var(--marbl-charcoal-darkest) !important;
-  border-color: var(--marbl-gold) !important;
+  border-color: var(--marbl-ember) !important;
+}
+.btn.btn--copied::before,
+.btn.btn--copied:hover::before {
+  display: none !important;
+}
+.btn.btn--copied .btn__icon,
+.btn.btn--copied:hover .btn__icon {
+  background: var(--marbl-black-15, rgba(0, 0, 0, 0.15)) !important;
+  color: var(--marbl-charcoal-darkest) !important;
+}
+.btn.btn--copied .btn__icon svg,
+.btn.btn--copied:hover .btn__icon svg {
+  transform: none !important;
 }
 
 /* ───────────────────────────────────────────────────────────────────
