@@ -39,21 +39,23 @@
     return bytes;
   };
 
-  // Visually-hidden live region announces copy success to screen readers.
-  // The button's text-change alone isn't announced because the button doesn't
-  // have aria-live - we use a separate region the user can rely on.
-  const announceLive = (msg) => {
+  // Visually-hidden live region for AT announcements. Created once at boot
+  // (NVDA in particular needs aria-live regions present in the DOM at page
+  // load to register them - lazy creation on first use can miss).
+  const ensureLiveRegion = () => {
     let region = document.getElementById('a11y-live');
-    if (!region) {
-      region = document.createElement('div');
-      region.id = 'a11y-live';
-      region.setAttribute('role', 'status');
-      region.setAttribute('aria-live', 'polite');
-      region.setAttribute('aria-atomic', 'true');
-      // Visually hidden, accessible to AT.
-      region.style.cssText = 'position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden;';
-      document.body.appendChild(region);
-    }
+    if (region) return region;
+    region = document.createElement('div');
+    region.id = 'a11y-live';
+    region.setAttribute('role', 'status');
+    region.setAttribute('aria-live', 'polite');
+    region.setAttribute('aria-atomic', 'true');
+    region.style.cssText = 'position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden;';
+    document.body.appendChild(region);
+    return region;
+  };
+  const announceLive = (msg) => {
+    const region = ensureLiveRegion();
     // Re-empty then set so AT re-announces even on repeat.
     region.textContent = '';
     setTimeout(() => { region.textContent = msg; }, 50);
@@ -237,7 +239,10 @@
     // Capture the key into a closure variable, then strip the fragment from
     // the URL IMMEDIATELY (not on success). Eliminates the error-path leak
     // where a failed decrypt left the AES key persisted in browser history.
-    try { history.replaceState(null, '', window.location.pathname); } catch (_) { /* ignore */ }
+    // Preserve query string in case future UTM-tagged share links arrive.
+    try {
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    } catch (_) { /* ignore */ }
 
     const ID_PATTERN = /^[A-Za-z0-9_-]{16}$/;
     if (!id || !ID_PATTERN.test(id) || !keyB64) {
@@ -318,6 +323,9 @@
 
   // Boot
   document.addEventListener('DOMContentLoaded', () => {
+    // Create the AT live region at page load so screen readers register it
+    // before any flashCopy / announceLive call.
+    ensureLiveRegion();
     if (document.body.dataset.page === 'recipient') {
       initRecipient();
     } else if (document.body.dataset.page === 'sender') {

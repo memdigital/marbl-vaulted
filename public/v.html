@@ -21,11 +21,11 @@
   <!-- Page-specific styles -->
   <link rel="stylesheet" href="/style.css">
 
-  <!-- Fathom Analytics (proxied through our Worker - same-origin only).
-       Plaintext lives in the DOM here, so the proxy matters: CSP stays
-       'self' for script-src, no third-party CDN can be compromised to
-       exfiltrate the secret. -->
-  <script src="/fathom-proxy/script.js" data-site="TMMKDURM" defer></script>
+  <!-- NO analytics on the recipient page. Plaintext lives in the DOM here.
+       Even same-origin-proxied analytics is a third-party trust boundary
+       hidden behind a 'self' URL: a compromised cdn.usefathom.com would
+       still serve compromised code from our origin with full DOM access.
+       Track sender events on /, never recipient events on /v/*. -->
 </head>
 <body data-page="recipient">
 

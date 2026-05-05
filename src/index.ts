@@ -19,16 +19,38 @@ interface Env {
 }
 
 const TTL_SECONDS = 60 * 60; // 1 hour
-// Max base64url length of stored ciphertext. ~8192 chars ≈ 6 KiB raw.
-const MAX_CIPHERTEXT_B64_CHARS = 8192;
+// Max base64url length of stored ciphertext. Client caps plaintext at 4000
+// chars; worst-case UTF-8 expansion = 4 bytes/char = 16000 bytes; AES-GCM adds
+// a 16-byte auth tag; base64url expansion = ceil(N*4/3) ≈ 21356 chars. Round
+// up to 24000 with headroom so unicode-heavy 4000-char inputs don't get
+// rejected after client-side encryption work.
+const MAX_CIPHERTEXT_B64_CHARS = 24000;
 
 const SECURITY_HEADERS: Record<string, string> = {
   'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
+  // Privacy-first: opt out of every permission-gated API we don't use,
+  // including modern privacy-relevant ones (FLoC/Topics, attribution-reporting).
+  'Permissions-Policy': [
+    'camera=()',
+    'microphone=()',
+    'geolocation=()',
+    'payment=()',
+    'usb=()',
+    'magnetometer=()',
+    'gyroscope=()',
+    'accelerometer=()',
+    'interest-cohort=()',
+    'browsing-topics=()',
+    'attribution-reporting=()',
+    'private-state-token-redemption=()',
+    'private-state-token-issuance=()',
+  ].join(', '),
 };
+
+const APP_ORIGIN = 'https://vaulted.marbl.codes';
 
 // Cache-suppressing headers for any response containing or relating to a
 // secret. Belt-and-braces - intermediaries (proxies, browser bfcache, future
@@ -93,7 +115,20 @@ function isValidId(id: string): boolean {
   return /^[A-Za-z0-9_-]{16}$/.test(id);
 }
 
+// CSRF defence: reject any POST whose Origin header doesn't match our app
+// origin. Without this, a malicious page could trigger /api/reveal/{id} via
+// no-cors fetch - the response is opaque to the attacker, but the burn still
+// happens, denying the legitimate user. Rejected BEFORE rate-limit so cross-
+// origin attempts don't drain a real user's bucket.
+function requireSameOrigin(request: Request): boolean {
+  const origin = request.headers.get('origin');
+  return origin === APP_ORIGIN;
+}
+
 async function handleStore(request: Request, env: Env): Promise<Response> {
+  if (!requireSameOrigin(request)) {
+    return jsonResponse({ error: 'forbidden' }, 403);
+  }
   // Reject if Cloudflare didn't supply the IP - belt-and-braces against an
   // edge misconfiguration where every request would share the 'unknown' bucket.
   const ip = request.headers.get('cf-connecting-ip');
@@ -138,6 +173,13 @@ async function handleStore(request: Request, env: Env): Promise<Response> {
 async function handleReveal(id: string, request: Request, env: Env): Promise<Response> {
   // Same generic 404 for every failure path.
   const opaqueNotFound = () => jsonResponse({ error: 'not_found' }, 404);
+
+  // CSRF burn defence - cross-origin reveal calls would burn a legitimate
+  // user's secret without yielding plaintext to the attacker (opaque fetch).
+  // Reject BEFORE rate-limit so it doesn't drain the bucket.
+  if (!requireSameOrigin(request)) {
+    return opaqueNotFound();
+  }
 
   if (!isValidId(id)) {
     return opaqueNotFound();
@@ -184,11 +226,28 @@ async function handleReveal(id: string, request: Request, env: Env): Promise<Res
 // document.currentScript.src, so when loaded from /fathom-proxy/script.js it
 // will send tracking requests to /fathom-proxy/, which we forward back to
 // Fathom. Result: CSP stays 'self'-only and analytics still works.
+// Fathom proxy: served on /index.html and /about.html only. NEVER on /v/*
+// (recipient page). Path is allowlisted - the proxy is NOT a generic forward
+// to cdn.usefathom.com. Only requests for the script itself and the bare-root
+// tracker pixel (sent as GET with query params for pageview/event) are served.
+const FATHOM_ALLOWED_METHODS = new Set(['GET']);
+
 async function handleFathomProxy(request: Request, url: URL, path: string): Promise<Response> {
+  if (!FATHOM_ALLOWED_METHODS.has(request.method)) {
+    return new Response('Method not allowed', { status: 405 });
+  }
+
   const upstreamPath = path.slice('/fathom-proxy/'.length);
+  // Reject any path traversal or unexpected characters. Only known endpoints:
+  //   - script.js (the tracker library)
+  //   - "" (the bare root - tracker pixel events arrive as GET / with query)
+  if (upstreamPath !== 'script.js' && upstreamPath !== '') {
+    return new Response('Not found', { status: 404 });
+  }
+
   const upstreamUrl = `https://cdn.usefathom.com/${upstreamPath}${url.search}`;
   const upstream = await fetch(upstreamUrl, {
-    method: request.method,
+    method: 'GET',
     headers: { 'User-Agent': request.headers.get('user-agent') || 'Mozilla/5.0' },
   });
   const headers = new Headers();
@@ -201,6 +260,10 @@ async function handleFathomProxy(request: Request, url: URL, path: string): Prom
     // Fathom's script self-detects: when not loaded from cdn.usefathom.com,
     // it sets trackerUrl = "https://" + script-src-hostname + "/".
     // We patch that to "/fathom-proxy/" so tracking pixels stay same-origin.
+    // BRITTLE: depends on Fathom's exact minified output. If they ship a
+    // new build that changes this token, analytics silently break - but the
+    // strict CSP (connect-src 'self') will block the unproxied fallback,
+    // making the failure visible rather than turning into a covert leak.
     let body = await upstream.text();
     body = body.replace(
       'trackerUrl="https://"+scriptUrl.hostname+"/"',
@@ -257,8 +320,7 @@ export default {
     // Recipient page: serve static v.html ONLY for /v/{valid-id}.
     // Bare /v or /v/ has no secret to reveal - redirect home so users get a
     // clear page instead of a confusing reveal flow that can't succeed.
-    // Recipient gets the tighter CSP_RECIPIENT (no third-party scripts) -
-    // plaintext lives in the DOM here, so zero third parties allowed.
+    // The recipient HTML itself loads NO analytics (see v.html comment).
     if (path === '/v' || path === '/v/') {
       return Response.redirect(new URL('/', url).toString(), 302);
     }
