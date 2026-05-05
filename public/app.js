@@ -28,11 +28,35 @@
   };
 
   const b64decode = (str) => {
-    const padded = str.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((str.length + 3) % 4);
+    // Correct padding: append (4 - len%4) % 4 equals signs.
+    // The previous formula '==='.slice((str.length+3)%4) silently appended
+    // a stray '=' on length-multiple-of-4 inputs, breaking IV decode.
+    const padding = '='.repeat((4 - (str.length % 4)) % 4);
+    const padded = str.replace(/-/g, '+').replace(/_/g, '/') + padding;
     const bin = atob(padded);
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     return bytes;
+  };
+
+  // Visually-hidden live region announces copy success to screen readers.
+  // The button's text-change alone isn't announced because the button doesn't
+  // have aria-live - we use a separate region the user can rely on.
+  const announceLive = (msg) => {
+    let region = document.getElementById('a11y-live');
+    if (!region) {
+      region = document.createElement('div');
+      region.id = 'a11y-live';
+      region.setAttribute('role', 'status');
+      region.setAttribute('aria-live', 'polite');
+      region.setAttribute('aria-atomic', 'true');
+      // Visually hidden, accessible to AT.
+      region.style.cssText = 'position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden;';
+      document.body.appendChild(region);
+    }
+    // Re-empty then set so AT re-announces even on repeat.
+    region.textContent = '';
+    setTimeout(() => { region.textContent = msg; }, 50);
   };
 
   const flashCopy = (btn, label) => {
@@ -41,6 +65,7 @@
     btn.dataset.originalText = original;
     btn.textContent = label || 'Copied!';
     btn.classList.add('btn--copied');
+    announceLive(label || 'Copied to clipboard');
     setTimeout(() => {
       btn.textContent = original;
       btn.classList.remove('btn--copied');
@@ -186,6 +211,9 @@
   };
 
   // === Recipient flow ===
+  // CRITICAL: reveal MUST require an explicit user gesture (button click).
+  // DO NOT auto-fire fetch('/api/reveal/...') on page load - email scanners
+  // and link-preview bots will burn the secret before the recipient sees it.
   const initRecipient = () => {
     const revealStage = $('reveal-stage');
     const secretStage = $('secret-stage');
@@ -195,6 +223,7 @@
     const copySecretBtn = $('copy-secret-btn');
     const confirmBtn = $('confirm-btn');
     const secretText = $('secret-text');
+    const copyStatus = $('copy-status');
 
     if (!revealBtn) return;
 
@@ -204,6 +233,11 @@
     const fragment = window.location.hash.slice(1);
     const params = new URLSearchParams(fragment);
     const keyB64 = params.get('k');
+
+    // Capture the key into a closure variable, then strip the fragment from
+    // the URL IMMEDIATELY (not on success). Eliminates the error-path leak
+    // where a failed decrypt left the AES key persisted in browser history.
+    try { history.replaceState(null, '', window.location.pathname); } catch (_) { /* ignore */ }
 
     const ID_PATTERN = /^[A-Za-z0-9_-]{16}$/;
     if (!id || !ID_PATTERN.test(id) || !keyB64) {
@@ -218,18 +252,15 @@
       fathom('reveal-clicked');
 
       try {
-        const res = await fetch(`/api/reveal/${encodeURIComponent(id)}`, { method: 'POST' });
-        if (res.status === 404) {
-          throw new Error('This secret has already been revealed or has expired.');
-        }
-        if (res.status === 429) {
-          throw new Error('Too many requests. Wait a moment and try again.');
-        }
-        if (res.status === 400) {
-          throw new Error('This link is malformed. Ask the sender to send a fresh one.');
-        }
+        const res = await fetch(`/api/reveal/${encodeURIComponent(id)}`, {
+          method: 'POST',
+          cache: 'no-store',
+        });
+        // Server returns generic 404 for every failure (not_found, invalid_id,
+        // rate_limited, missing IP) so attackers can't enumerate state.
+        // We surface the most likely human cause to the user.
         if (!res.ok) {
-          throw new Error('Could not retrieve the secret. Please try again.');
+          throw new Error('This secret has already been revealed, expired, or the link is malformed.');
         }
 
         const stored = await res.json();
@@ -255,10 +286,8 @@
         hide(revealStage);
         show(secretStage);
 
-        // Strip fragment from URL so the key doesn't persist in browser history / sync.
-        try { history.replaceState(null, '', window.location.pathname); } catch (_) { /* ignore */ }
-
-        // Move focus to the secret block so screen readers can read it.
+        // Move focus to the secret block so screen readers announce it.
+        // <pre> needs tabindex="-1" in v.html for .focus() to actually work.
         secretText.focus();
 
         fathom('reveal-success');

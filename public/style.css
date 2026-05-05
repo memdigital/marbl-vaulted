@@ -51,7 +51,7 @@ body {
   color: var(--marbl-white);
   margin: 0 0 var(--gap-sm) 0;
   letter-spacing: -0.02em;
-  white-space: nowrap;
+  text-wrap: balance;
 }
 
 /* .marbl-accent - canonical brand kit spec
@@ -66,7 +66,6 @@ body {
 }
 @media (max-width: 480px) {
   .vaulted-title {
-    white-space: normal;
     font-size: var(--text-2xl);
   }
 }
@@ -185,10 +184,11 @@ textarea.vaulted-textarea:focus {
   word-break: break-all;
   color: var(--marbl-white);
   margin: var(--gap-sm) 0;
-  max-height: 400px;
+  max-height: 50vh;
   overflow: auto;
 }
 .vaulted-secret-display pre:focus {
+  /* WCAG-recommended focus indicator dimensions - structural, not theme. */
   outline: 3px solid var(--marbl-ember);
   outline-offset: 2px;
 }
@@ -390,9 +390,12 @@ textarea.vaulted-textarea:focus {
   font-weight: var(--font-semibold);
 }
 
+/* Narrowed prefers-reduced-motion - only kills decorative motion (the pulsing
+   pill dot, button fill animations). State-change transitions like .btn--copied
+   colour shifts remain perceivable so users know an action succeeded. */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    transition-duration: 0.01s !important;
-    animation-duration: 0.01s !important;
-  }
+  .ab-pill__dot { animation: none !important; }
+  .btn--fill-up::before,
+  .btn--solid::before { transition: none !important; }
+  .btn__icon svg { transition: none !important; }
 }

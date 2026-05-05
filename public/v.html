@@ -21,8 +21,9 @@
   <!-- Page-specific styles -->
   <link rel="stylesheet" href="/style.css">
 
-  <!-- Fathom Analytics -->
-  <script src="https://cdn.usefathom.com/script.js" data-site="TMMKDURM" defer></script>
+  <!-- NO third-party analytics on the recipient page. The decrypted plaintext
+       lives in the DOM here; a compromised third-party script could read it
+       directly. Zero-knowledge requires zero third parties. -->
 </head>
 <body data-page="recipient">
 
@@ -119,7 +120,7 @@
     <section id="secret-stage" class="vaulted-secret-display" hidden>
       <h1 class="vaulted-title">Here it <span class="marbl-accent">is.</span></h1>
       <p class="vaulted-tagline">Copy it now. Once you confirm below, this page can't show it again.</p>
-      <pre id="secret-text" tabindex="0" aria-live="polite" aria-label="Decrypted secret"></pre>
+      <pre id="secret-text" tabindex="-1" role="region" aria-live="polite" aria-atomic="true" aria-label="Decrypted secret"></pre>
       <div class="vaulted-action-row">
         <button type="button" id="copy-secret-btn" class="btn btn--fill-up">Copy secret</button>
         <button type="button" id="confirm-btn" class="btn btn--ghost">I've got it - destroy</button>
