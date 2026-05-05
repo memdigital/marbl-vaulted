@@ -68,8 +68,9 @@
   <!-- Page-specific styles -->
   <link rel="stylesheet" href="/style.css">
 
-  <!-- Fathom Analytics -->
-  <script src="https://cdn.usefathom.com/script.js" data-site="TMMKDURM" defer></script>
+  <!-- Fathom Analytics (proxied through our Worker so it counts as 'self' -
+       lets us keep strict same-origin CSP everywhere). -->
+  <script src="/fathom-proxy/script.js" data-site="TMMKDURM" defer></script>
 </head>
 <body data-page="sender">
 

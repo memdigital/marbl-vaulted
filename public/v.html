@@ -21,9 +21,11 @@
   <!-- Page-specific styles -->
   <link rel="stylesheet" href="/style.css">
 
-  <!-- NO third-party analytics on the recipient page. The decrypted plaintext
-       lives in the DOM here; a compromised third-party script could read it
-       directly. Zero-knowledge requires zero third parties. -->
+  <!-- Fathom Analytics (proxied through our Worker - same-origin only).
+       Plaintext lives in the DOM here, so the proxy matters: CSP stays
+       'self' for script-src, no third-party CDN can be compromised to
+       exfiltrate the secret. -->
+  <script src="/fathom-proxy/script.js" data-site="TMMKDURM" defer></script>
 </head>
 <body data-page="recipient">
 

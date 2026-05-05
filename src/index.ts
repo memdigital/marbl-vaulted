@@ -39,56 +39,30 @@ const NO_STORE_HEADERS: Record<string, string> = {
   'Expires': '0',
 };
 
-// Strict CSP. Recipient page (/v.html) gets a tighter CSP that omits Fathom
-// because the decrypted plaintext lives in the DOM there - a compromised
-// third-party script could exfiltrate it. Sender + about pages keep Fathom.
-const CSP_BASE_DIRECTIVES = {
-  default: "default-src 'self'",
-  style: "style-src 'self' 'unsafe-inline' https://marbl.codes",
-  font: "font-src 'self' https://marbl.codes data:",
-  img: "img-src 'self' data: https://marbl.codes",
-  frameAnc: "frame-ancestors 'none'",
-  form: "form-action 'self'",
-  base: "base-uri 'self'",
-  obj: "object-src 'none'",
-};
-
+// One CSP for all pages - same-origin only for scripts AND connects.
+// Fathom Analytics is proxied through /fathom-proxy/* below so it counts
+// as 'self', not third-party. Zero-knowledge requires zero third parties
+// (Truth #94) and the proxy gives us that without losing usage analytics.
 const CSP_DEFAULT = [
-  CSP_BASE_DIRECTIVES.default,
-  "script-src 'self' https://marbl.codes https://cdn.usefathom.com",
-  CSP_BASE_DIRECTIVES.style,
-  CSP_BASE_DIRECTIVES.font,
-  CSP_BASE_DIRECTIVES.img,
-  "connect-src 'self' https://*.usefathom.com",
-  CSP_BASE_DIRECTIVES.frameAnc,
-  CSP_BASE_DIRECTIVES.form,
-  CSP_BASE_DIRECTIVES.base,
-  CSP_BASE_DIRECTIVES.obj,
-].join('; ');
-
-// Recipient-page CSP - no third-party scripts, no third-party connect.
-// Plaintext lives in the DOM here; zero-knowledge requires zero third parties.
-const CSP_RECIPIENT = [
-  CSP_BASE_DIRECTIVES.default,
+  "default-src 'self'",
   "script-src 'self' https://marbl.codes",
-  CSP_BASE_DIRECTIVES.style,
-  CSP_BASE_DIRECTIVES.font,
-  CSP_BASE_DIRECTIVES.img,
+  "style-src 'self' 'unsafe-inline' https://marbl.codes",
+  "font-src 'self' https://marbl.codes data:",
+  "img-src 'self' data: https://marbl.codes",
   "connect-src 'self'",
-  CSP_BASE_DIRECTIVES.frameAnc,
-  CSP_BASE_DIRECTIVES.form,
-  CSP_BASE_DIRECTIVES.base,
-  CSP_BASE_DIRECTIVES.obj,
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
 ].join('; ');
 
 function applyHeaders(
   response: Response,
   extras?: Record<string, string>,
-  cspOverride?: string,
 ): Response {
   const headers = new Headers(response.headers);
   for (const [k, v] of Object.entries(SECURITY_HEADERS)) headers.set(k, v);
-  headers.set('Content-Security-Policy', cspOverride ?? CSP_DEFAULT);
+  headers.set('Content-Security-Policy', CSP_DEFAULT);
   if (extras) for (const [k, v] of Object.entries(extras)) headers.set(k, v);
   return new Response(response.body, {
     status: response.status,
@@ -205,6 +179,40 @@ async function handleReveal(id: string, request: Request, env: Env): Promise<Res
   });
 }
 
+// Fathom proxy: forwards anything under /fathom-proxy/<rest> to
+// https://cdn.usefathom.com/<rest>. The script auto-detects its origin from
+// document.currentScript.src, so when loaded from /fathom-proxy/script.js it
+// will send tracking requests to /fathom-proxy/, which we forward back to
+// Fathom. Result: CSP stays 'self'-only and analytics still works.
+async function handleFathomProxy(request: Request, url: URL, path: string): Promise<Response> {
+  const upstreamPath = path.slice('/fathom-proxy/'.length);
+  const upstreamUrl = `https://cdn.usefathom.com/${upstreamPath}${url.search}`;
+  const upstream = await fetch(upstreamUrl, {
+    method: request.method,
+    headers: { 'User-Agent': request.headers.get('user-agent') || 'Mozilla/5.0' },
+  });
+  const headers = new Headers();
+  const ct = upstream.headers.get('content-type');
+  if (ct) headers.set('Content-Type', ct);
+
+  if (upstreamPath === 'script.js') {
+    headers.set('Cache-Control', 'public, max-age=1800'); // 30 min
+    // Rewrite the script so its tracker URL points back through our proxy.
+    // Fathom's script self-detects: when not loaded from cdn.usefathom.com,
+    // it sets trackerUrl = "https://" + script-src-hostname + "/".
+    // We patch that to "/fathom-proxy/" so tracking pixels stay same-origin.
+    let body = await upstream.text();
+    body = body.replace(
+      'trackerUrl="https://"+scriptUrl.hostname+"/"',
+      'trackerUrl="https://"+scriptUrl.hostname+"/fathom-proxy/"',
+    );
+    return new Response(body, { status: upstream.status, headers });
+  }
+
+  headers.set('Cache-Control', 'no-store');
+  return new Response(upstream.body, { status: upstream.status, headers });
+}
+
 // Bindings guard: refuse to start if any required binding is missing.
 // Catches accidental config drift before users hit a runtime error.
 function requireBindings(env: Env): string | null {
@@ -225,6 +233,14 @@ export default {
 
     const url = new URL(request.url);
     const path = url.pathname;
+
+    // Fathom Analytics proxy: same-origin script + tracker so CSP can stay
+    // 'self'-only on every page (including the recipient page where
+    // plaintext lives in the DOM). Counts as 'self' to the browser.
+    // Pattern follows Fathom's official Cloudflare Worker proxy template.
+    if (path.startsWith('/fathom-proxy/')) {
+      return handleFathomProxy(request, url, path);
+    }
 
     // API routes
     if (path === '/api/store' && request.method === 'POST') {
@@ -256,7 +272,6 @@ export default {
       return applyHeaders(
         response,
         { 'X-Robots-Tag': 'noindex, nofollow', ...NO_STORE_HEADERS },
-        CSP_RECIPIENT,
       );
     }
 
