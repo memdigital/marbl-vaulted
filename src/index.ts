@@ -154,8 +154,17 @@ export default {
       return applyHeaders(jsonResponse({ error: 'not_found' }, 404));
     }
 
-    // Recipient page: serve static v.html with noindex header.
+    // Recipient page: serve static v.html ONLY for /v/{valid-id}.
+    // Bare /v or /v/ has no secret to reveal - redirect home so users get a
+    // clear page instead of a confusing reveal flow that can't succeed.
+    if (path === '/v' || path === '/v/') {
+      return Response.redirect(new URL('/', url).toString(), 302);
+    }
     if (path.startsWith('/v/')) {
+      const id = path.slice('/v/'.length);
+      if (!isValidId(id)) {
+        return Response.redirect(new URL('/', url).toString(), 302);
+      }
       const vRequest = new Request(new URL('/v.html', url), request);
       const response = await env.ASSETS.fetch(vRequest);
       return applyHeaders(response, { 'X-Robots-Tag': 'noindex, nofollow' });
