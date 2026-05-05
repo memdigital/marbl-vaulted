@@ -128,60 +128,141 @@
     </div>
   </div>
 
-  <main class="vaulted-about" id="main">
-    <p class="vaulted-label">About Vaulted</p>
-    <h1 class="vaulted-title">A one-time secret share, <span class="marbl-accent">done properly</span></h1>
-    <p class="vaulted-tagline">
-      Sharing a password over Slack, email, or text leaves it sitting in conversation history, search indexes, and backups - sometimes forever. Vaulted is a free tool from Marbl Codes that fixes that. Paste your secret, get a single-use URL, send it, and the moment the recipient opens it the server's copy is gone.
-    </p>
+  <main id="main">
 
-    <h2>How it works</h2>
-    <ul>
-      <li><strong>Encrypted in your browser.</strong> AES-GCM-256 via the Web Crypto API. The server never sees the plaintext.</li>
-      <li><strong>Key in the URL fragment.</strong> The decryption key lives after the <code>#</code>, which browsers never send to servers.</li>
-      <li><strong>Destroyed on reveal.</strong> The recipient's first reveal triggers an atomic delete. There is no second reveal.</li>
-      <li><strong>Auto-expires.</strong> Unrevealed secrets self-destruct after one hour.</li>
-      <li><strong>No accounts.</strong> No login, no email capture, no tracking the secret. Fathom Analytics for page-level usage only.</li>
-    </ul>
+    <!-- Hero -->
+    <section class="ab-hero ab-container" aria-labelledby="ab-hero-title">
+      <span class="ab-pill" role="status">
+        <span class="ab-pill__dot" aria-hidden="true"></span>
+        About Vaulted
+      </span>
+      <div class="ab-hero__content">
+        <h1 class="ab-hero__title" id="ab-hero-title">A one-time secret share, <span class="marbl-accent">done properly</span></h1>
+        <p class="ab-hero__lead">
+          Sharing a password over Slack, email, or text leaves it sitting in conversation history, search indexes, and backups - sometimes forever. Vaulted is a free tool from Marbl Codes that fixes that.
+        </p>
+        <div class="ab-hero__ctas">
+          <a href="/" class="btn btn--fill-up">
+            Vault a secret
+            <span class="btn__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+            </span>
+          </a>
+          <a href="https://marbl.codes/" target="_blank" rel="noopener noreferrer" class="btn btn--outline">
+            Visit Marbl Codes
+            <span class="btn__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7M17 7H7M17 7V17"/></svg>
+            </span>
+          </a>
+        </div>
+      </div>
+    </section>
 
-    <h2>What we can and can't see</h2>
-    <p>
-      We can see ciphertext (encrypted bytes) and an initialisation vector. We cannot see the secret itself - the key never reaches us. We see your IP for rate-limiting, which is standard. We do not log secrets, do not store them after reveal, and do not back them up.
-    </p>
+    <div class="ab-divider ab-container" role="presentation"></div>
 
-    <h2>Who built it</h2>
-    <p>
-      Vaulted is built and maintained by <a href="https://marbl.codes/" target="_blank" rel="noopener noreferrer">Marbl Codes</a> - the AI-native digital agency by <a href="https://marbl.codes/about" target="_blank" rel="noopener noreferrer">Richard Bland</a>. We help small and medium businesses adopt AI safely, with humans staying in the loop. We're the human in your AI loop.
-    </p>
-    <p>
-      We made Vaulted because we needed it ourselves. It's free. If you find it useful, take a look at our other tools at <a href="https://marbl.codes/" target="_blank" rel="noopener noreferrer">marbl.codes</a> or <a href="https://subscribe.marbl.codes/?utm_source=vaulted&amp;utm_medium=about&amp;utm_campaign=launch" target="_blank" rel="noopener noreferrer">join our newsletter</a> for what's coming next.
-    </p>
+    <!-- How it works -->
+    <section class="ab-section ab-container" aria-labelledby="how-title">
+      <div class="ab-section__layout">
+        <div class="ab-section__head">
+          <p class="ab-section__label">The mechanics</p>
+          <h2 class="ab-section__title" id="how-title">How it works</h2>
+        </div>
+        <div class="ab-section__body">
+          <p>
+            Vaulted is end-to-end encrypted. The server only ever sees ciphertext - the decryption key never reaches our infrastructure.
+          </p>
+          <ul class="ab-list">
+            <li><strong>Encrypted in your browser.</strong> AES-GCM-256 via the Web Crypto API. The server never sees the plaintext.</li>
+            <li><strong>Key in the URL fragment.</strong> The decryption key lives after the <code>#</code>, which browsers never send to servers.</li>
+            <li><strong>Destroyed on reveal.</strong> The recipient's first reveal triggers an atomic delete. There is no second reveal.</li>
+            <li><strong>Auto-expires.</strong> Unrevealed secrets self-destruct after one hour.</li>
+            <li><strong>No accounts.</strong> No login, no email capture, no tracking the secret. Fathom Analytics for page-level usage only.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
 
-    <h2>Limits and caveats</h2>
-    <ul>
-      <li>Maximum secret length: 4,000 characters.</li>
-      <li>One-time view per link - once revealed, gone.</li>
-      <li>One-hour TTL on unrevealed secrets.</li>
-      <li>Rate-limited per IP to keep the service free for everyone.</li>
-      <li>This is a free tool offered as-is. For high-stakes secret-sharing in regulated environments, talk to us about a managed solution.</li>
-    </ul>
+    <div class="ab-divider ab-container" role="presentation"></div>
 
-    <h2>Open about how it's built</h2>
-    <p>
-      Vaulted runs on a single Cloudflare Worker with KV storage and native rate limiting. Everything sensitive happens in your browser. If you want to dig into the code, find us on <a href="https://github.com/memdigital" target="_blank" rel="noopener noreferrer">GitHub</a>.
-    </p>
-    <p>
-      Questions or feedback? <a href="mailto:hello@marbl.codes">hello@marbl.codes</a>.
-    </p>
+    <!-- Privacy -->
+    <section class="ab-section ab-container" aria-labelledby="privacy-title">
+      <div class="ab-section__layout">
+        <div class="ab-section__head">
+          <p class="ab-section__label">The privacy</p>
+          <h2 class="ab-section__title" id="privacy-title">What we can and can't see</h2>
+        </div>
+        <div class="ab-section__body">
+          <p>
+            We can see ciphertext (encrypted bytes) and an initialisation vector. We <strong>cannot</strong> see the secret itself - the key never reaches us.
+          </p>
+          <p>
+            We see your IP for rate-limiting, which is standard. We do not log secrets, do not store them after reveal, and do not back them up.
+          </p>
+        </div>
+      </div>
+    </section>
 
-    <p class="vaulted-about__cta">
-      <a href="/" class="btn btn--fill-up">
-        Vault a secret
-        <span class="btn__icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-        </span>
-      </a>
-    </p>
+    <div class="ab-divider ab-container" role="presentation"></div>
+
+    <!-- Who built it -->
+    <section class="ab-section ab-container" aria-labelledby="who-title">
+      <div class="ab-section__layout">
+        <div class="ab-section__head">
+          <p class="ab-section__label">The makers</p>
+          <h2 class="ab-section__title" id="who-title">Who built it</h2>
+        </div>
+        <div class="ab-section__body">
+          <p>
+            Vaulted is built and maintained by <a href="https://marbl.codes/" target="_blank" rel="noopener noreferrer">Marbl Codes</a> - the AI-native digital agency by <a href="https://marbl.codes/about" target="_blank" rel="noopener noreferrer">Richard Bland</a>. We help small and medium businesses adopt AI safely, with humans staying in the loop. <strong>We're the human in your AI loop.</strong>
+          </p>
+          <p>
+            We made Vaulted because we needed it ourselves. It's free. If you find it useful, take a look at our other tools at <a href="https://marbl.codes/" target="_blank" rel="noopener noreferrer">marbl.codes</a> or <a href="https://subscribe.marbl.codes/?utm_source=vaulted&amp;utm_medium=about&amp;utm_campaign=launch" target="_blank" rel="noopener noreferrer">join our newsletter</a> for what's coming next.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="ab-divider ab-container" role="presentation"></div>
+
+    <!-- Limits -->
+    <section class="ab-section ab-container" aria-labelledby="limits-title">
+      <div class="ab-section__layout">
+        <div class="ab-section__head">
+          <p class="ab-section__label">The fine print</p>
+          <h2 class="ab-section__title" id="limits-title">Limits and caveats</h2>
+        </div>
+        <div class="ab-section__body">
+          <ul class="ab-list">
+            <li>Maximum secret length: 4,000 characters.</li>
+            <li>One-time view per link - once revealed, gone.</li>
+            <li>One-hour TTL on unrevealed secrets.</li>
+            <li>Rate-limited per IP to keep the service free for everyone.</li>
+            <li>This is a free tool offered as-is. For high-stakes secret-sharing in regulated environments, talk to us about a managed solution.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <div class="ab-divider ab-container" role="presentation"></div>
+
+    <!-- Closing -->
+    <section class="ab-section ab-container" aria-labelledby="open-title">
+      <div class="ab-section__layout">
+        <div class="ab-section__head">
+          <p class="ab-section__label">The code</p>
+          <h2 class="ab-section__title" id="open-title">Open about how it's built</h2>
+        </div>
+        <div class="ab-section__body">
+          <p>
+            Vaulted runs on a single Cloudflare Worker with KV storage and native rate limiting. Everything sensitive happens in your browser. If you want to dig into the code, find us on <a href="https://github.com/memdigital" target="_blank" rel="noopener noreferrer">GitHub</a>.
+          </p>
+          <p>
+            Questions or feedback? <a href="mailto:hello@marbl.codes">hello@marbl.codes</a>.
+          </p>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <footer class="site-footer">
