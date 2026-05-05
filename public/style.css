@@ -54,14 +54,11 @@ body {
   text-wrap: balance;
 }
 
-/* .marbl-accent - canonical brand kit spec
-   (Petrona italic 800, 1.15em, ember). Not exported as a standalone
-   stylesheet, so consumer sites redeclare to match the brand kit preview. */
 .marbl-accent {
   font-family: 'Petrona', Georgia, serif;
   font-style: italic;
   font-weight: 800;
-  font-size: 1.15em;
+  font-size: 1.2em;
   color: var(--marbl-ember);
 }
 @media (max-width: 480px) {
