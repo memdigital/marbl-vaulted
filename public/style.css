@@ -1,0 +1,253 @@
+/* Marbl Vaulted - page-specific styles only.
+   Canonical Marbl chrome (header, menu, footer, cookie consent, scrollbar, cursor)
+   comes from https://marbl.codes/core/marbl-core.css. We override / extend only
+   what's local to vaulted. */
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--marbl-charcoal, #171415);
+  color: rgba(255, 255, 255, 0.85);
+  font-family: var(--font-body, 'Inter', -apple-system, BlinkMacSystemFont, sans-serif);
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Centred content area, mirrors Atlas's holding-main layout. */
+.vaulted-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--gap-md, 40px) var(--gap-sm, 20px);
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.vaulted-label {
+  font-size: var(--text-xs, 11px);
+  font-weight: var(--font-semibold, 600);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--marbl-ember, #F35226);
+  margin: 0 0 var(--gap-sm, 20px) 0;
+}
+
+.vaulted-title {
+  font-family: var(--font-heading, 'Urbanist', sans-serif);
+  font-size: clamp(40px, 1.8rem + 4vw, 80px);
+  font-weight: var(--font-bold, 700);
+  line-height: 1.05;
+  color: #ffffff;
+  margin: 0 0 var(--gap-sm, 20px) 0;
+  letter-spacing: -0.02em;
+}
+
+.vaulted-title .marbl-accent {
+  font-family: 'Petrona', Georgia, serif;
+  font-style: italic;
+  font-weight: 800;
+  font-size: 1.15em;
+  color: var(--marbl-ember, #F35226);
+}
+
+.vaulted-tagline {
+  font-size: var(--text-lg, clamp(16px, 0.9rem + 0.3vw, 18px));
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.7);
+  max-width: 560px;
+  margin: 0 0 var(--gap-md, 40px) 0;
+}
+
+/* Form */
+.vaulted-form {
+  width: 100%;
+  max-width: 560px;
+  text-align: left;
+  margin: 0 auto;
+}
+
+.vaulted-form label.vaulted-label {
+  text-align: left;
+  display: block;
+}
+
+textarea.vaulted-textarea {
+  width: 100%;
+  background: transparent;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius, 10px);
+  padding: var(--gap-sm, 20px);
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 140px;
+  margin-bottom: var(--gap-sm, 20px);
+  transition: border-color 0.15s ease;
+}
+textarea.vaulted-textarea:focus {
+  outline: none;
+  border-color: var(--marbl-ember, #F35226);
+}
+
+/* Result block */
+.vaulted-result {
+  width: 100%;
+  max-width: 560px;
+  text-align: left;
+  margin: 0 auto;
+}
+
+.vaulted-status {
+  color: var(--marbl-ember, #F35226);
+  font-weight: 600;
+  margin: 0 0 var(--gap-xs, 10px) 0;
+}
+
+.vaulted-url-display {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-xs, 10px);
+  background: var(--marbl-charcoal-deep, #0d0b0c);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius, 10px);
+  padding: var(--gap-sm, 20px);
+  margin: var(--gap-sm, 20px) 0;
+}
+
+.vaulted-url-display code {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 13px;
+  word-break: break-all;
+  color: rgba(255, 255, 255, 0.85);
+  white-space: pre-wrap;
+}
+
+.vaulted-meta {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  margin: var(--gap-xs, 10px) 0 0;
+}
+
+/* Error */
+.vaulted-error {
+  width: 100%;
+  max-width: 560px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid #ef4444;
+  border-radius: var(--radius, 10px);
+  padding: var(--gap-sm, 20px);
+  color: #ef4444;
+  margin: var(--gap-sm, 20px) auto 0;
+  text-align: left;
+}
+
+/* Recipient secret display */
+.vaulted-secret-display {
+  width: 100%;
+  max-width: 560px;
+  text-align: left;
+  margin: 0 auto;
+}
+
+.vaulted-secret-display pre {
+  background: var(--marbl-charcoal-deep, #0d0b0c);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius, 10px);
+  padding: var(--gap-sm, 20px);
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 14px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: #ffffff;
+  margin: var(--gap-sm, 20px) 0;
+  max-height: 400px;
+  overflow: auto;
+}
+.vaulted-secret-display pre:focus {
+  outline: 3px solid var(--marbl-ember, #F35226);
+  outline-offset: 2px;
+}
+
+/* Local button overrides - fall back to canonical .btn--fill-up where available */
+.vaulted-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-xs, 10px);
+  align-items: center;
+}
+
+.btn--copied {
+  background: #22c55e !important;
+  color: var(--marbl-on-ember, #131112) !important;
+  border-color: #22c55e !important;
+}
+
+/* About page content */
+.vaulted-about {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--gap-md, 40px) var(--gap-sm, 20px);
+  text-align: left;
+}
+
+.vaulted-about h1 {
+  font-family: var(--font-heading, 'Urbanist', sans-serif);
+  font-size: clamp(36px, 4vw, 56px);
+  font-weight: 700;
+  line-height: 1.1;
+  margin: 0 0 var(--gap-sm, 20px);
+  color: #fff;
+}
+
+.vaulted-about h2 {
+  font-family: var(--font-heading, 'Urbanist', sans-serif);
+  font-size: clamp(22px, 2vw, 28px);
+  font-weight: 700;
+  margin: var(--gap-md, 40px) 0 var(--gap-xs, 10px);
+  color: #fff;
+}
+
+.vaulted-about p {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 17px;
+  line-height: 1.6;
+  margin: 0 0 var(--gap-sm, 20px);
+}
+
+.vaulted-about a {
+  color: var(--marbl-ember, #F35226);
+  text-decoration: underline;
+}
+.vaulted-about a:hover {
+  color: var(--marbl-ember-dark, #BB2F09);
+}
+
+.vaulted-about ul {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 17px;
+  line-height: 1.6;
+  padding-left: 1.4em;
+  margin: 0 0 var(--gap-sm, 20px);
+}
+
+.vaulted-about li { margin-bottom: var(--gap-xs, 10px); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01s !important;
+    animation-duration: 0.01s !important;
+  }
+}

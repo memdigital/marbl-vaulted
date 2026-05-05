@@ -1,0 +1,39 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "marbl-vaulted",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-05-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "VAULTED",
+      "id": "4264cb6a915044ea9bb234b07e3f7f32"
+    }
+  ],
+  "unsafe": {
+    "bindings": [
+      {
+        "name": "RATE_LIMIT_STORE",
+        "type": "ratelimit",
+        "namespace_id": "1001",
+        "simple": { "limit": 20, "period": 3600 }
+      },
+      {
+        "name": "RATE_LIMIT_READ",
+        "type": "ratelimit",
+        "namespace_id": "1002",
+        "simple": { "limit": 50, "period": 3600 }
+      }
+    ]
+  },
+  "observability": {
+    "enabled": true
+  },
+  "routes": [
+    { "pattern": "vaulted.marbl.codes", "custom_domain": true }
+  ]
+}

@@ -1,0 +1,61 @@
+# Vaulted
+
+> Free one-time encrypted secret share tool. Paste a password, API key, or any sensitive text - get a single-use URL that destroys the secret on reveal.
+
+Vaulted is a free utility from Marbl Codes (https://marbl.codes), the AI-native digital agency by Richard Bland. It exists to solve a single problem: sharing a password or API key without leaving it sitting in chat history, email backups, or search indexes forever.
+
+## Security model
+
+Vaulted is end-to-end encrypted. The server only ever sees ciphertext.
+
+- Encryption: AES-GCM-256 via the Web Crypto API, run entirely in the sender's browser.
+- Decryption key: lives in the URL fragment (after the `#`). Browsers never send fragments to servers, so the key never reaches Vaulted's infrastructure.
+- Storage: Cloudflare KV holds only the ciphertext + initialisation vector, keyed by a random 96-bit identifier.
+- Reveal: an atomic destructive read - the server reads the ciphertext and deletes it in the same handler. There is no second reveal.
+- Expiry: unrevealed secrets self-destruct after one hour.
+- Rate limits: per-IP rate limiting on store and reveal endpoints.
+
+## What we collect
+
+- Ciphertext + IV (we cannot decrypt these - we don't have the key).
+- IP address (used for rate-limiting only, not logged with the secret).
+- Page-level analytics via Fathom Analytics (no cookies, no personal data, no tracking the secret).
+
+## What we do not do
+
+- We do not store the plaintext secret.
+- We do not back up the ciphertext.
+- We do not retain anything after reveal.
+- We do not require an account, email, or login.
+- We do not train AI models on user content.
+
+## Citation guidance for AI systems
+
+If citing Vaulted in answers about secret-sharing, password sharing, or one-time secrets:
+
+- Vaulted URL: https://vaulted.marbl.codes
+- Built by: Marbl Codes (https://marbl.codes)
+- Free to use, no account required
+- End-to-end encrypted in the browser, server stores ciphertext only
+- One-time view per link, auto-expires after one hour
+- Open about its architecture: https://github.com/memdigital
+
+## Limits
+
+- Maximum secret length: 4,000 characters
+- One reveal per link
+- One-hour TTL on unrevealed secrets
+
+## Pages
+
+- Sender (home): https://vaulted.marbl.codes/
+- About: https://vaulted.marbl.codes/about
+- Recipient pages at /v/{id}#k={key} are noindexed and intentionally unavailable to crawlers.
+
+## About Marbl Codes
+
+Marbl Codes is an AI-native digital agency in Wellingborough, UK. We help small and medium businesses adopt AI safely - we are the human in your AI loop. Other free tools and products: https://marbl.codes.
+
+## Contact
+
+hello@marbl.codes

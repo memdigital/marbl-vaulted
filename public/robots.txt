@@ -1,0 +1,53 @@
+# Vaulted - https://vaulted.marbl.codes
+# Public pages welcome. Recipient pages and the API are not indexable.
+
+User-agent: *
+Allow: /
+Allow: /about
+Disallow: /v/
+Disallow: /api/
+
+# Content-Signal directive
+# search=yes (we want to be found)
+# ai-input=yes (AI assistants may use page content for grounded answers)
+# ai-train=no (do not use to train models)
+Content-Signal: search=yes, ai-input=yes, ai-train=no
+
+# Welcome AI crawlers explicitly
+User-agent: GPTBot
+Allow: /
+Allow: /about
+Disallow: /v/
+Disallow: /api/
+
+User-agent: ClaudeBot
+Allow: /
+Allow: /about
+Disallow: /v/
+Disallow: /api/
+
+User-agent: PerplexityBot
+Allow: /
+Allow: /about
+Disallow: /v/
+Disallow: /api/
+
+User-agent: Google-Extended
+Allow: /
+Allow: /about
+Disallow: /v/
+Disallow: /api/
+
+User-agent: CCBot
+Allow: /
+Allow: /about
+Disallow: /v/
+Disallow: /api/
+
+User-agent: Applebot-Extended
+Allow: /
+Allow: /about
+Disallow: /v/
+Disallow: /api/
+
+Sitemap: https://vaulted.marbl.codes/sitemap.xml
