@@ -198,12 +198,15 @@
 
     if (!revealBtn) return;
 
-    const id = window.location.pathname.split('/').filter(Boolean).pop() || '';
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
+    // Path is /v/{id} - id must be the segment after "v" (16-char base64url).
+    const id = (pathParts[0] === 'v' && pathParts.length >= 2) ? pathParts[1] : '';
     const fragment = window.location.hash.slice(1);
     const params = new URLSearchParams(fragment);
     const keyB64 = params.get('k');
 
-    if (!id || !keyB64) {
+    const ID_PATTERN = /^[A-Za-z0-9_-]{16}$/;
+    if (!id || !ID_PATTERN.test(id) || !keyB64) {
       hide(revealStage);
       showError(errorStage, "This link is incomplete. Ask the sender to send a fresh one.");
       return;
@@ -221,6 +224,9 @@
         }
         if (res.status === 429) {
           throw new Error('Too many requests. Wait a moment and try again.');
+        }
+        if (res.status === 400) {
+          throw new Error('This link is malformed. Ask the sender to send a fresh one.');
         }
         if (!res.ok) {
           throw new Error('Could not retrieve the secret. Please try again.');
