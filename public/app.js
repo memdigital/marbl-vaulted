@@ -241,9 +241,17 @@
     // the URL IMMEDIATELY (not on success). Eliminates the error-path leak
     // where a failed decrypt left the AES key persisted in browser history.
     // Preserve query string in case future UTM-tagged share links arrive.
+    // FAIL CLOSED: if replaceState throws (sandboxed iframe, extension
+    // context), the key would persist in the URL bar. Refuse to proceed -
+    // the security model relies on the fragment being stripped.
     try {
       history.replaceState(null, '', window.location.pathname + window.location.search);
-    } catch (_) { /* ignore */ }
+    } catch (e) {
+      console.error('[vaulted] history.replaceState failed; refusing to proceed', e);
+      hide(revealStage);
+      showError(errorStage, "Your browser blocked a security step. Refresh the page or open the link in a different browser.");
+      return;
+    }
 
     // Validate BOTH id and key client-side BEFORE the user can click reveal.
     // Server burns ciphertext on reveal, so a malformed key would destroy the

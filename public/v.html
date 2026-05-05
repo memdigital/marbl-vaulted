@@ -12,11 +12,16 @@
   <link rel="icon" type="image/svg+xml" href="https://marbl.codes/assets/icons/favicon.svg">
   <link rel="icon" type="image/png" sizes="96x96" href="https://marbl.codes/assets/icons/favicon-96x96.png">
 
-  <!-- Marbl canonical fonts -->
-  <link rel="stylesheet" href="https://marbl.codes/components/marbl-fonts/marbl-fonts.css">
+  <!-- Marbl canonical fonts. SRI-pinned. -->
+  <link rel="stylesheet" href="https://marbl.codes/components/marbl-fonts/marbl-fonts.css"
+        integrity="sha384-kJwdz6vK98oNIjVANrdXeMRJQxRCyxnNh9eCdoYapeGY6LAHs4V4CAV9tlyy6gBY"
+        crossorigin="anonymous">
 
-  <!-- Marbl canonical core -->
-  <link rel="stylesheet" href="https://marbl.codes/core/marbl-core.css">
+  <!-- Marbl canonical core. SRI-pinned - the recipient page holds plaintext;
+       cross-origin scripts must be cryptographically verified. -->
+  <link rel="stylesheet" href="https://marbl.codes/core/marbl-core.css"
+        integrity="sha384-OvoRiROIQioqArp9kf0pDkJWHctoizj0ykzbB/VpYZRW3ZoB+cSLludseZvx/Y4u"
+        crossorigin="anonymous">
 
   <!-- Page-specific styles -->
   <link rel="stylesheet" href="/style.css">
@@ -123,7 +128,7 @@
       <h1 class="vaulted-title">Here it <span class="marbl-accent">is.</span></h1>
       <p class="vaulted-tagline">Copy your secret now. Once you have it, click destroy!</p>
       <div class="vaulted-secret-display">
-        <pre id="secret-text" tabindex="-1" role="region" aria-live="polite" aria-atomic="true" aria-label="Decrypted secret"></pre>
+        <pre id="secret-text" tabindex="-1" role="region" aria-label="Decrypted secret. Copy now."></pre>
         <div class="vaulted-action-row">
           <button type="button" id="copy-secret-btn" class="btn btn--fill-up">
             Copy secret
@@ -185,8 +190,12 @@
     </div>
   </footer>
 
-  <script src="https://marbl.codes/vendor/gsap/3.12.7/gsap.min.js" defer></script>
-  <script src="https://marbl.codes/core/marbl-core.js" defer></script>
+  <script src="https://marbl.codes/vendor/gsap/3.12.7/gsap.min.js"
+          integrity="sha384-pEQB1h4Zmn9xhS6jotzltHSIQq6N0Oh3BXkCNOH5LKI81R2NRbb9efarAJYw9gTY"
+          crossorigin="anonymous" defer></script>
+  <script src="https://marbl.codes/core/marbl-core.js"
+          integrity="sha384-2Htn/e2etxIFn7AKuDsmHlAeXKrTsYayA+FGHlRu2stlpw9q7zTl1751dZrN+Qpn"
+          crossorigin="anonymous" defer></script>
   <script src="/app.js" defer></script>
 </body>
 </html>

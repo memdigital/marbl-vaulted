@@ -59,11 +59,16 @@
   }
   </script>
 
-  <!-- Marbl canonical fonts -->
-  <link rel="stylesheet" href="https://marbl.codes/components/marbl-fonts/marbl-fonts.css">
+  <!-- Marbl canonical fonts. SRI-pinned. If marbl.codes serves different
+       content, browser refuses to apply the stylesheet. -->
+  <link rel="stylesheet" href="https://marbl.codes/components/marbl-fonts/marbl-fonts.css"
+        integrity="sha384-kJwdz6vK98oNIjVANrdXeMRJQxRCyxnNh9eCdoYapeGY6LAHs4V4CAV9tlyy6gBY"
+        crossorigin="anonymous">
 
-  <!-- Marbl canonical core (chrome, scrollbar, cursor, tokens, buttons) -->
-  <link rel="stylesheet" href="https://marbl.codes/core/marbl-core.css">
+  <!-- Marbl canonical core (chrome, scrollbar, cursor, tokens, buttons). SRI-pinned. -->
+  <link rel="stylesheet" href="https://marbl.codes/core/marbl-core.css"
+        integrity="sha384-OvoRiROIQioqArp9kf0pDkJWHctoizj0ykzbB/VpYZRW3ZoB+cSLludseZvx/Y4u"
+        crossorigin="anonymous">
 
   <!-- Page-specific styles -->
   <link rel="stylesheet" href="/style.css">
@@ -216,11 +221,18 @@
     </div>
   </footer>
 
-  <!-- GSAP for canonical chrome animations -->
-  <script src="https://marbl.codes/vendor/gsap/3.12.7/gsap.min.js" defer></script>
+  <!-- GSAP for canonical chrome animations. SRI-pinned to GSAP 3.12.7. -->
+  <script src="https://marbl.codes/vendor/gsap/3.12.7/gsap.min.js"
+          integrity="sha384-pEQB1h4Zmn9xhS6jotzltHSIQq6N0Oh3BXkCNOH5LKI81R2NRbb9efarAJYw9gTY"
+          crossorigin="anonymous" defer></script>
 
-  <!-- Marbl Core (logo animation, menu overlay, cookie consent, custom scrollbar/cursor) -->
-  <script src="https://marbl.codes/core/marbl-core.js" defer></script>
+  <!-- Marbl Core (logo animation, menu overlay, cookie consent, custom scrollbar/cursor). SRI-pinned.
+       If marbl.codes serves different bytes, browser refuses to execute - we get a visible
+       failure rather than silently running potentially compromised code with full DOM access
+       to a page that may hold plaintext (the secret typed before encryption). -->
+  <script src="https://marbl.codes/core/marbl-core.js"
+          integrity="sha384-2Htn/e2etxIFn7AKuDsmHlAeXKrTsYayA+FGHlRu2stlpw9q7zTl1751dZrN+Qpn"
+          crossorigin="anonymous" defer></script>
 
   <!-- Vaulted page logic -->
   <script src="/app.js" defer></script>
