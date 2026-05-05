@@ -108,6 +108,7 @@
     if (btn) {
       btn.textContent = 'Copy failed - select manually';
     }
+    announceLive('Copy failed. Select the text manually.');
     return false;
   };
 
@@ -244,8 +245,13 @@
       history.replaceState(null, '', window.location.pathname + window.location.search);
     } catch (_) { /* ignore */ }
 
+    // Validate BOTH id and key client-side BEFORE the user can click reveal.
+    // Server burns ciphertext on reveal, so a malformed key would destroy the
+    // secret without yielding plaintext (decrypt fails after the destructive
+    // read). 256-bit AES key = 32 bytes = 43 base64url chars.
     const ID_PATTERN = /^[A-Za-z0-9_-]{16}$/;
-    if (!id || !ID_PATTERN.test(id) || !keyB64) {
+    const KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+    if (!id || !ID_PATTERN.test(id) || !keyB64 || !KEY_PATTERN.test(keyB64)) {
       hide(revealStage);
       showError(errorStage, "This link is incomplete. Ask the sender to send a fresh one.");
       return;

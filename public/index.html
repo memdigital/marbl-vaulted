@@ -68,9 +68,14 @@
   <!-- Page-specific styles -->
   <link rel="stylesheet" href="/style.css">
 
-  <!-- Fathom Analytics (proxied through our Worker so it counts as 'self' -
-       lets us keep strict same-origin CSP everywhere). -->
-  <script src="/fathom-proxy/script.js" data-site="TMMKDURM" defer></script>
+  <!-- NO analytics on the sender page. The user types the secret into
+       textarea#secret BEFORE encryption - plaintext lives in the DOM here,
+       same as the recipient page. Even same-origin-proxied analytics is a
+       third-party trust boundary hidden behind a 'self' URL: a compromised
+       cdn.usefathom.com would still serve compromised code from our origin
+       with full DOM access to the secret-in-progress. Truth #94 plus the
+       Moirai-2 truth (proxying != trust reduction). -->
+
 </head>
 <body data-page="sender">
 

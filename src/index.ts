@@ -125,6 +125,11 @@ function requireSameOrigin(request: Request): boolean {
   return origin === APP_ORIGIN;
 }
 
+// Shape validators for stored payload. AES-GCM IV is 12 bytes = 16 base64url
+// chars without padding. Ciphertext must be base64url too.
+const B64URL_PATTERN = /^[A-Za-z0-9_-]+$/;
+const IV_B64_LENGTH = 16;
+
 async function handleStore(request: Request, env: Env): Promise<Response> {
   if (!requireSameOrigin(request)) {
     return jsonResponse({ error: 'forbidden' }, 403);
@@ -135,6 +140,14 @@ async function handleStore(request: Request, env: Env): Promise<Response> {
   if (!ip) {
     return jsonResponse({ error: 'forbidden' }, 403);
   }
+
+  // Reject oversized bodies BEFORE parsing JSON (cheap server protection).
+  // Rough budget: max ciphertext + iv + JSON wrapper overhead ≈ 25KB worst case.
+  const contentLength = request.headers.get('content-length');
+  if (contentLength && parseInt(contentLength, 10) > 32 * 1024) {
+    return jsonResponse({ error: 'too_large' }, 413);
+  }
+
   const limited = await env.RATE_LIMIT_STORE.limit({ key: `store:${ip}` });
   if (!limited.success) {
     return jsonResponse({ error: 'rate_limited' }, 429);
@@ -150,7 +163,15 @@ async function handleStore(request: Request, env: Env): Promise<Response> {
   if (typeof body.ciphertext !== 'string' || typeof body.iv !== 'string') {
     return jsonResponse({ error: 'invalid_payload' }, 400);
   }
-  if (body.ciphertext.length === 0 || body.iv.length === 0) {
+  // Charset + length checks: base64url charset, IV is exactly 16 chars (12B),
+  // ciphertext is non-empty and within budget.
+  if (!B64URL_PATTERN.test(body.ciphertext) || !B64URL_PATTERN.test(body.iv)) {
+    return jsonResponse({ error: 'invalid_payload' }, 400);
+  }
+  if (body.iv.length !== IV_B64_LENGTH) {
+    return jsonResponse({ error: 'invalid_payload' }, 400);
+  }
+  if (body.ciphertext.length === 0) {
     return jsonResponse({ error: 'invalid_payload' }, 400);
   }
   if (body.ciphertext.length > MAX_CIPHERTEXT_B64_CHARS) {
@@ -234,7 +255,7 @@ const FATHOM_ALLOWED_METHODS = new Set(['GET']);
 
 async function handleFathomProxy(request: Request, url: URL, path: string): Promise<Response> {
   if (!FATHOM_ALLOWED_METHODS.has(request.method)) {
-    return new Response('Method not allowed', { status: 405 });
+    return applyHeaders(new Response('Method not allowed', { status: 405 }));
   }
 
   const upstreamPath = path.slice('/fathom-proxy/'.length);
@@ -242,38 +263,58 @@ async function handleFathomProxy(request: Request, url: URL, path: string): Prom
   //   - script.js (the tracker library)
   //   - "" (the bare root - tracker pixel events arrive as GET / with query)
   if (upstreamPath !== 'script.js' && upstreamPath !== '') {
-    return new Response('Not found', { status: 404 });
+    return applyHeaders(new Response('Not found', { status: 404 }));
   }
 
   const upstreamUrl = `https://cdn.usefathom.com/${upstreamPath}${url.search}`;
+  // redirect: 'manual' so an upstream redirect can't escape the allowlist.
   const upstream = await fetch(upstreamUrl, {
     method: 'GET',
+    redirect: 'manual',
     headers: { 'User-Agent': request.headers.get('user-agent') || 'Mozilla/5.0' },
   });
-  const headers = new Headers();
-  const ct = upstream.headers.get('content-type');
-  if (ct) headers.set('Content-Type', ct);
+
+  if (upstream.status >= 300 && upstream.status < 400) {
+    console.warn('[fathom-proxy] upstream tried to redirect, refusing', upstream.status);
+    return applyHeaders(new Response('Not found', { status: 404 }));
+  }
 
   if (upstreamPath === 'script.js') {
-    headers.set('Cache-Control', 'public, max-age=1800'); // 30 min
     // Rewrite the script so its tracker URL points back through our proxy.
     // Fathom's script self-detects: when not loaded from cdn.usefathom.com,
     // it sets trackerUrl = "https://" + script-src-hostname + "/".
     // We patch that to "/fathom-proxy/" so tracking pixels stay same-origin.
     // BRITTLE: depends on Fathom's exact minified output. If they ship a
-    // new build that changes this token, analytics silently break - but the
-    // strict CSP (connect-src 'self') will block the unproxied fallback,
-    // making the failure visible rather than turning into a covert leak.
-    let body = await upstream.text();
-    body = body.replace(
+    // new build that changes this token, the replace silently no-ops, the
+    // script keeps trying to POST to cdn.usefathom.com directly, and CSP
+    // connect-src 'self' blocks it - making the failure visible. We also
+    // log here so the failure is surfaceable in logs not just user reports.
+    const original = await upstream.text();
+    const rewritten = original.replace(
       'trackerUrl="https://"+scriptUrl.hostname+"/"',
       'trackerUrl="https://"+scriptUrl.hostname+"/fathom-proxy/"',
     );
-    return new Response(body, { status: upstream.status, headers });
+    if (rewritten === original) {
+      console.warn('[fathom-proxy] tracker URL rewrite no-oped - upstream changed');
+    }
+    return applyHeaders(new Response(rewritten, {
+      status: upstream.status,
+      headers: {
+        'Content-Type': 'application/javascript; charset=utf-8',
+        'Cache-Control': 'public, max-age=1800',
+      },
+    }));
   }
 
-  headers.set('Cache-Control', 'no-store');
-  return new Response(upstream.body, { status: upstream.status, headers });
+  // Tracker pixel - pass through with no-store and explicit content type.
+  const ct = upstream.headers.get('content-type') || 'application/octet-stream';
+  return applyHeaders(new Response(upstream.body, {
+    status: upstream.status,
+    headers: {
+      'Content-Type': ct,
+      'Cache-Control': 'no-store',
+    },
+  }));
 }
 
 // Bindings guard: refuse to start if any required binding is missing.
