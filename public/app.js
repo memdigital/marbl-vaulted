@@ -27,6 +27,13 @@
     return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
   };
 
+  // SHA-256 of an input string -> base64url. Used to hash the verifier
+  // client-side so the server stores only the hash, not the verifier itself.
+  const sha256B64Url = async (input) => {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
+    return b64encode(new Uint8Array(buf));
+  };
+
   const b64decode = (str) => {
     // Correct padding: append (4 - len%4) % 4 equals signs.
     // The previous formula '==='.slice((str.length+3)%4) silently appended
@@ -155,12 +162,20 @@
         );
         const exportedKey = await crypto.subtle.exportKey('raw', key);
 
+        // Verifier: 16 random bytes the recipient will present to prove
+        // knowledge of the URL fragment before the server burns the entry.
+        // The server stores only its SHA-256 hash, not the verifier itself.
+        const verifierBytes = crypto.getRandomValues(new Uint8Array(16));
+        const verifierB64 = b64encode(verifierBytes);
+        const verifierHash = await sha256B64Url(verifierB64);
+
         const res = await fetch('/api/store', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             ciphertext: b64encode(new Uint8Array(ciphertext)),
             iv: b64encode(iv),
+            verifierHash,
           }),
         });
         if (!res.ok) {
@@ -175,7 +190,9 @@
         }
         const { id } = await res.json();
         const keyB64 = b64encode(new Uint8Array(exportedKey));
-        const url = `${window.location.origin}/v/${id}#k=${keyB64}`;
+        // Both key (for decryption) AND verifier (for proof-of-knowledge)
+        // travel in the URL fragment. Neither reaches the server via the URL.
+        const url = `${window.location.origin}/v/${id}#k=${keyB64}&v=${verifierB64}`;
 
         resultUrl.textContent = url;
         hide(formStage);
@@ -236,6 +253,7 @@
     const fragment = window.location.hash.slice(1);
     const params = new URLSearchParams(fragment);
     const keyB64 = params.get('k');
+    const verifierB64 = params.get('v');
 
     // Capture the key into a closure variable, then strip the fragment from
     // the URL IMMEDIATELY (not on success). Eliminates the error-path leak
@@ -253,13 +271,18 @@
       return;
     }
 
-    // Validate BOTH id and key client-side BEFORE the user can click reveal.
-    // Server burns ciphertext on reveal, so a malformed key would destroy the
-    // secret without yielding plaintext (decrypt fails after the destructive
-    // read). 256-bit AES key = 32 bytes = 43 base64url chars.
+    // Validate id, AES key, AND verifier client-side BEFORE reveal can fire.
+    // Server requires the verifier to authorise destructive read - a malformed
+    // verifier means the server will return 404, the secret stays alive.
+    // 256-bit AES key = 43 base64url chars. 16-byte verifier = 22 base64url chars.
     const ID_PATTERN = /^[A-Za-z0-9_-]{16}$/;
     const KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/;
-    if (!id || !ID_PATTERN.test(id) || !keyB64 || !KEY_PATTERN.test(keyB64)) {
+    const VERIFIER_PATTERN = /^[A-Za-z0-9_-]{22}$/;
+    if (
+      !id || !ID_PATTERN.test(id) ||
+      !keyB64 || !KEY_PATTERN.test(keyB64) ||
+      !verifierB64 || !VERIFIER_PATTERN.test(verifierB64)
+    ) {
       hide(revealStage);
       showError(errorStage, "This link is incomplete. Ask the sender to send a fresh one.");
       return;
@@ -274,6 +297,8 @@
         const res = await fetch(`/api/reveal/${encodeURIComponent(id)}`, {
           method: 'POST',
           cache: 'no-store',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ verifier: verifierB64 }),
         });
         // Server returns generic 404 for every failure (not_found, invalid_id,
         // rate_limited, missing IP) so attackers can't enumerate state.

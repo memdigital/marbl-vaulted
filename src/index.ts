@@ -125,10 +125,35 @@ function requireSameOrigin(request: Request): boolean {
   return origin === APP_ORIGIN;
 }
 
-// Shape validators for stored payload. AES-GCM IV is 12 bytes = 16 base64url
-// chars without padding. Ciphertext must be base64url too.
+// Shape validators for stored payload.
+// - Ciphertext: base64url string up to MAX_CIPHERTEXT_B64_CHARS.
+// - IV: 12 raw bytes -> 16 base64url chars (no padding).
+// - Verifier hash: SHA-256 of the URL-fragment verifier -> 32 raw bytes ->
+//   43 base64url chars (no padding). Stored alongside ciphertext; checked
+//   on reveal as proof-of-knowledge before destructive read.
 const B64URL_PATTERN = /^[A-Za-z0-9_-]+$/;
 const IV_B64_LENGTH = 16;
+const VERIFIER_HASH_LENGTH = 43;
+const VERIFIER_LENGTH = 22; // 16 raw bytes -> 22 base64url chars
+
+// Constant-time comparison of two equal-length strings. Branch-free byte
+// xor accumulator - prevents an attacker timing the hash compare.
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < a.length; i++) {
+    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return mismatch === 0;
+}
+
+async function sha256B64Url(input: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
 
 async function handleStore(request: Request, env: Env): Promise<Response> {
   if (!requireSameOrigin(request)) {
@@ -153,22 +178,32 @@ async function handleStore(request: Request, env: Env): Promise<Response> {
     return jsonResponse({ error: 'rate_limited' }, 429);
   }
 
-  let body: { ciphertext?: unknown; iv?: unknown };
+  let body: { ciphertext?: unknown; iv?: unknown; verifierHash?: unknown };
   try {
-    body = (await request.json()) as { ciphertext?: unknown; iv?: unknown };
+    body = (await request.json()) as { ciphertext?: unknown; iv?: unknown; verifierHash?: unknown };
   } catch {
     return jsonResponse({ error: 'invalid_payload' }, 400);
   }
 
-  if (typeof body.ciphertext !== 'string' || typeof body.iv !== 'string') {
+  if (
+    typeof body.ciphertext !== 'string' ||
+    typeof body.iv !== 'string' ||
+    typeof body.verifierHash !== 'string'
+  ) {
     return jsonResponse({ error: 'invalid_payload' }, 400);
   }
-  // Charset + length checks: base64url charset, IV is exactly 16 chars (12B),
-  // ciphertext is non-empty and within budget.
-  if (!B64URL_PATTERN.test(body.ciphertext) || !B64URL_PATTERN.test(body.iv)) {
+  // Charset + length checks.
+  if (
+    !B64URL_PATTERN.test(body.ciphertext) ||
+    !B64URL_PATTERN.test(body.iv) ||
+    !B64URL_PATTERN.test(body.verifierHash)
+  ) {
     return jsonResponse({ error: 'invalid_payload' }, 400);
   }
   if (body.iv.length !== IV_B64_LENGTH) {
+    return jsonResponse({ error: 'invalid_payload' }, 400);
+  }
+  if (body.verifierHash.length !== VERIFIER_HASH_LENGTH) {
     return jsonResponse({ error: 'invalid_payload' }, 400);
   }
   if (body.ciphertext.length === 0) {
@@ -181,7 +216,7 @@ async function handleStore(request: Request, env: Env): Promise<Response> {
   const id = generateId();
   await env.VAULTED.put(
     id,
-    JSON.stringify({ c: body.ciphertext, i: body.iv }),
+    JSON.stringify({ c: body.ciphertext, i: body.iv, h: body.verifierHash }),
     { expirationTtl: TTL_SECONDS },
   );
 
@@ -221,19 +256,51 @@ async function handleReveal(id: string, request: Request, env: Env): Promise<Res
     return opaqueNotFound();
   }
 
-  // KV get + delete. Note: KV delete propagates globally over ~60s, so two
-  // simultaneous reveals from different PoPs could theoretically both succeed.
-  // Mitigations: the random URL fragment key (server never sees) means a
-  // double-reveal still doesn't yield plaintext to anyone without the URL,
-  // and the burn-on-success makes abuse logs visible. For true atomic
-  // single-read semantics we'd need D1 with DELETE...RETURNING.
+  // Parse + validate the verifier from the request body. Verifier proves
+  // the caller has the URL fragment; an attacker with only the id (e.g.
+  // a link-preview bot that executes JS but doesn't have the fragment)
+  // cannot pass this check, so they cannot trigger destructive read.
+  let body: { verifier?: unknown };
+  try {
+    body = (await request.json()) as { verifier?: unknown };
+  } catch {
+    return opaqueNotFound();
+  }
+  const candidate = body.verifier;
+  if (typeof candidate !== 'string' || !B64URL_PATTERN.test(candidate) || candidate.length !== VERIFIER_LENGTH) {
+    return opaqueNotFound();
+  }
+
+  // PEEK the stored entry FIRST, verify the hash, then destructive-read.
+  // Order matters: we must NOT delete on a wrong-verifier attempt, otherwise
+  // an attacker with the id can grief by burning the secret without proof.
   const stored = await env.VAULTED.get(id);
   if (stored === null) {
     return opaqueNotFound();
   }
+  let parsed: { c?: string; i?: string; h?: string };
+  try {
+    parsed = JSON.parse(stored) as { c?: string; i?: string; h?: string };
+  } catch {
+    return opaqueNotFound();
+  }
+  if (typeof parsed.h !== 'string') {
+    return opaqueNotFound();
+  }
+  const candidateHash = await sha256B64Url(candidate);
+  if (!constantTimeEqual(candidateHash, parsed.h)) {
+    return opaqueNotFound();
+  }
+
+  // Verifier matched - destructive read. Note: KV delete propagates globally
+  // over ~60s. Two simultaneous reveals from different PoPs with the SAME
+  // verifier can both succeed - but to have the verifier you must have the
+  // URL fragment, and at that point you can decrypt the ciphertext anyway.
+  // The race only matters if the URL leaks; the URL is the secret (Truth #76).
+  // True single-read needs D1 with DELETE...RETURNING (deferred).
   await env.VAULTED.delete(id);
 
-  return new Response(stored, {
+  return new Response(JSON.stringify({ c: parsed.c, i: parsed.i }), {
     status: 200,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
