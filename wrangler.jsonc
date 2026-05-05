@@ -9,12 +9,16 @@
     "binding": "ASSETS",
     "run_worker_first": true
   },
-  "kv_namespaces": [
+  "d1_databases": [
     {
-      "binding": "VAULTED",
-      "id": "4264cb6a915044ea9bb234b07e3f7f32"
+      "binding": "DB",
+      "database_name": "marbl-vaulted",
+      "database_id": "9eaebea2-fc5b-4496-93c4-80e64f5f2122"
     }
   ],
+  "triggers": {
+    "crons": ["0 * * * *"]
+  },
   "unsafe": {
     "bindings": [
       {

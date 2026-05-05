@@ -12,7 +12,7 @@
  */
 
 interface Env {
-  VAULTED: KVNamespace;
+  DB: D1Database;
   ASSETS: Fetcher;
   RATE_LIMIT_STORE: { limit: (opts: { key: string }) => Promise<{ success: boolean }> };
   RATE_LIMIT_READ: { limit: (opts: { key: string }) => Promise<{ success: boolean }> };
@@ -214,11 +214,12 @@ async function handleStore(request: Request, env: Env): Promise<Response> {
   }
 
   const id = generateId();
-  await env.VAULTED.put(
-    id,
-    JSON.stringify({ c: body.ciphertext, i: body.iv, h: body.verifierHash }),
-    { expirationTtl: TTL_SECONDS },
-  );
+  const expiresAt = Math.floor(Date.now() / 1000) + TTL_SECONDS;
+  await env.DB.prepare(
+    'INSERT INTO secrets (id, c, i, h, expires_at) VALUES (?, ?, ?, ?, ?)',
+  )
+    .bind(id, body.ciphertext, body.iv, body.verifierHash, expiresAt)
+    .run();
 
   return jsonResponse({ id });
 }
@@ -271,36 +272,42 @@ async function handleReveal(id: string, request: Request, env: Env): Promise<Res
     return opaqueNotFound();
   }
 
-  // PEEK the stored entry FIRST, verify the hash, then destructive-read.
-  // Order matters: we must NOT delete on a wrong-verifier attempt, otherwise
-  // an attacker with the id can grief by burning the secret without proof.
-  const stored = await env.VAULTED.get(id);
-  if (stored === null) {
-    return opaqueNotFound();
-  }
-  let parsed: { c?: string; i?: string; h?: string };
-  try {
-    parsed = JSON.parse(stored) as { c?: string; i?: string; h?: string };
-  } catch {
-    return opaqueNotFound();
-  }
-  if (typeof parsed.h !== 'string') {
+  // PEEK the stored row FIRST, verify the hash in constant time, then
+  // destructive-read in a SECOND statement. Order matters: we must NOT delete
+  // on a wrong-verifier attempt, otherwise an attacker with just the id can
+  // grief by burning the secret without proof. We can't combine SELECT + hash
+  // check + DELETE into one SQL statement because SQLite's string equality
+  // would short-circuit on the first byte mismatch (timing leak on h).
+  const stored = await env.DB.prepare(
+    'SELECT c, i, h FROM secrets WHERE id = ? AND expires_at > unixepoch()',
+  )
+    .bind(id)
+    .first<{ c: string; i: string; h: string }>();
+  if (!stored) {
     return opaqueNotFound();
   }
   const candidateHash = await sha256B64Url(candidate);
-  if (!constantTimeEqual(candidateHash, parsed.h)) {
+  if (!constantTimeEqual(candidateHash, stored.h)) {
     return opaqueNotFound();
   }
 
-  // Verifier matched - destructive read. Note: KV delete propagates globally
-  // over ~60s. Two simultaneous reveals from different PoPs with the SAME
-  // verifier can both succeed - but to have the verifier you must have the
-  // URL fragment, and at that point you can decrypt the ciphertext anyway.
-  // The race only matters if the URL leaks; the URL is the secret (Truth #76).
-  // True single-read needs D1 with DELETE...RETURNING (deferred).
-  await env.VAULTED.delete(id);
+  // Verifier matched - destructive read. D1 DELETE...RETURNING is genuinely
+  // atomic: only one concurrent reveal can win the row. The peek-then-delete
+  // race window between SELECT and DELETE is microscopic, and any caller in
+  // it already has the verifier (and therefore the AES key in the URL
+  // fragment), so they can decrypt the ciphertext anyway. Truth #76: the
+  // URL is the secret.
+  const deleted = await env.DB.prepare(
+    'DELETE FROM secrets WHERE id = ? RETURNING c, i',
+  )
+    .bind(id)
+    .first<{ c: string; i: string }>();
+  if (!deleted) {
+    // Lost the race to another concurrent reveal. Same opaque 404.
+    return opaqueNotFound();
+  }
 
-  return new Response(JSON.stringify({ c: parsed.c, i: parsed.i }), {
+  return new Response(JSON.stringify({ c: deleted.c, i: deleted.i }), {
     status: 200,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
@@ -387,7 +394,7 @@ async function handleFathomProxy(request: Request, url: URL, path: string): Prom
 // Bindings guard: refuse to start if any required binding is missing.
 // Catches accidental config drift before users hit a runtime error.
 function requireBindings(env: Env): string | null {
-  if (!env.VAULTED) return 'VAULTED';
+  if (!env.DB) return 'DB';
   if (!env.ASSETS) return 'ASSETS';
   if (!env.RATE_LIMIT_STORE) return 'RATE_LIMIT_STORE';
   if (!env.RATE_LIMIT_READ) return 'RATE_LIMIT_READ';
@@ -461,5 +468,21 @@ export default {
     // Static assets: index.html, app.js, llms.txt, robots.txt, sitemap.xml, etc.
     const response = await env.ASSETS.fetch(request);
     return applyHeaders(response);
+  },
+
+  // Hourly cron sweeps any expired rows. Reveal already filters expired rows
+  // via WHERE expires_at > unixepoch(), so this is purely housekeeping to
+  // keep the table small and stop expired ciphertext sitting in storage past
+  // its TTL.
+  async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
+    const missing = requireBindings(env);
+    if (missing) {
+      console.error(`[vaulted] cron missing binding: ${missing}`);
+      return;
+    }
+    const result = await env.DB.prepare(
+      'DELETE FROM secrets WHERE expires_at <= unixepoch()',
+    ).run();
+    console.log(`[vaulted] cron swept ${result.meta?.changes ?? 0} expired row(s)`);
   },
 };
