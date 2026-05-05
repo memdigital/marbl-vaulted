@@ -43,12 +43,16 @@ body {
 
 .vaulted-title {
   font-family: var(--font-heading, 'Urbanist', sans-serif);
-  font-size: clamp(40px, 1.8rem + 4vw, 80px);
+  font-size: clamp(32px, 1.4rem + 3vw, 56px);
   font-weight: var(--font-bold, 700);
   line-height: 1.05;
   color: #ffffff;
   margin: 0 0 var(--gap-sm, 20px) 0;
   letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+@media (max-width: 480px) {
+  .vaulted-title { white-space: normal; font-size: clamp(28px, 7vw, 40px); }
 }
 
 .vaulted-title .marbl-accent {
@@ -86,12 +90,12 @@ textarea.vaulted-textarea {
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: var(--radius, 10px);
-  padding: var(--gap-sm, 20px);
+  padding: var(--gap-xs, 10px) var(--gap-sm, 20px);
   font-family: inherit;
   font-size: 15px;
   line-height: 1.5;
   resize: vertical;
-  min-height: 140px;
+  min-height: 80px;
   margin-bottom: var(--gap-sm, 20px);
   transition: border-color 0.15s ease;
 }
@@ -188,28 +192,41 @@ textarea.vaulted-textarea:focus {
   align-items: center;
 }
 
+/* Vaulted button: padlock icon inline, no circle bg, no hover rotation. */
+.vaulted-btn .vaulted-btn__icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin-right: var(--gap-xs, 10px);
+  background: transparent;
+  border-radius: 0;
+  transition: none;
+}
+.vaulted-btn:hover .vaulted-btn__icon,
+.vaulted-btn:hover .vaulted-btn__icon svg {
+  transform: none;
+}
+
 .btn--copied {
   background: #22c55e !important;
   color: var(--marbl-on-ember, #131112) !important;
   border-color: #22c55e !important;
 }
 
-/* About page content */
+/* About page content - shares .vaulted-title and .vaulted-tagline with the landing page. */
 .vaulted-about {
+  flex: 1;
   width: 100%;
   max-width: 720px;
   margin: 0 auto;
-  padding: var(--gap-md, 40px) var(--gap-sm, 20px);
+  padding: var(--gap-xl, 80px) var(--gap-sm, 20px) var(--gap-md, 40px);
   text-align: left;
+  border: 0;
 }
 
-.vaulted-about h1 {
-  font-family: var(--font-heading, 'Urbanist', sans-serif);
-  font-size: clamp(36px, 4vw, 56px);
-  font-weight: 700;
-  line-height: 1.1;
-  margin: 0 0 var(--gap-sm, 20px);
-  color: #fff;
+.vaulted-about > .vaulted-title,
+.vaulted-about > .vaulted-tagline {
+  white-space: normal;
 }
 
 .vaulted-about h2 {
@@ -218,6 +235,7 @@ textarea.vaulted-textarea:focus {
   font-weight: 700;
   margin: var(--gap-md, 40px) 0 var(--gap-xs, 10px);
   color: #fff;
+  border: 0;
 }
 
 .vaulted-about p {
@@ -225,6 +243,7 @@ textarea.vaulted-textarea:focus {
   font-size: 17px;
   line-height: 1.6;
   margin: 0 0 var(--gap-sm, 20px);
+  border: 0;
 }
 
 .vaulted-about a {
@@ -241,9 +260,14 @@ textarea.vaulted-textarea:focus {
   line-height: 1.6;
   padding-left: 1.4em;
   margin: 0 0 var(--gap-sm, 20px);
+  border: 0;
 }
 
 .vaulted-about li { margin-bottom: var(--gap-xs, 10px); }
+
+.vaulted-about__cta {
+  margin-top: var(--gap-md, 40px) !important;
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

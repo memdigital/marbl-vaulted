@@ -148,21 +148,20 @@
   <!-- Centred password tool, mirrors Atlas's holding-main pattern -->
   <main class="vaulted-main" id="main">
     <p class="vaulted-label">Marbl Vaulted</p>
-    <h1 class="vaulted-title">Share a secret. <span class="marbl-accent">Once.</span></h1>
+    <h1 class="vaulted-title">Share a secret, <span class="marbl-accent">once</span></h1>
     <p class="vaulted-tagline">
       Paste a password, API key, or any sensitive text. Vaulted encrypts it in your browser, gives you a single-use URL, and destroys the secret on reveal.
     </p>
 
     <section class="vaulted-form" id="form-stage">
       <label for="secret" class="vaulted-label">Your secret</label>
-      <textarea id="secret" class="vaulted-textarea" rows="5" placeholder="Paste the password, API key, or any sensitive text..." aria-required="true"></textarea>
-      <button type="button" id="vault-btn" class="btn btn--fill-up">
+      <textarea id="secret" class="vaulted-textarea" rows="3" placeholder="Paste the password, API key, or any sensitive text..." aria-required="true"></textarea>
+      <button type="button" id="vault-btn" class="btn btn--fill-up vaulted-btn">
+        <svg class="vaulted-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="4" y="11" width="16" height="10" rx="2"/>
+          <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+        </svg>
         Vault it
-        <span class="btn__icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M7 17L17 7M17 7H7M17 7V17"/>
-          </svg>
-        </span>
       </button>
     </section>
 
