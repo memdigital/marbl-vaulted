@@ -267,7 +267,12 @@ export default {
       if (!isValidId(id)) {
         return Response.redirect(new URL('/', url).toString(), 302);
       }
-      const vRequest = new Request(new URL('/v.html', url), request);
+      // Fetch the extension-less canonical URL the Static Assets binding
+      // resolves to v.html. Calling /v.html would trigger the binding's
+      // auto-trailing-slash 307 to /v, which the browser would follow,
+      // stripping the id segment from the URL and breaking the recipient
+      // flow. /v gets the file content without the redirect.
+      const vRequest = new Request(new URL('/v', url), request);
       const response = await env.ASSETS.fetch(vRequest);
       return applyHeaders(
         response,
@@ -277,7 +282,8 @@ export default {
 
     // About page route alias (so /about works as well as /about.html).
     if (path === '/about') {
-      const aboutRequest = new Request(new URL('/about.html', url), request);
+      // Same reasoning as /v: fetch the extension-less URL.
+      const aboutRequest = new Request(new URL('/about', url), request);
       const response = await env.ASSETS.fetch(aboutRequest);
       return applyHeaders(response);
     }
