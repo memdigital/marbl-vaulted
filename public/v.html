@@ -119,13 +119,25 @@
     </section>
 
     <!-- Secret stage: shows decrypted text + copy/confirm buttons -->
-    <section id="secret-stage" class="vaulted-secret-display" hidden>
+    <section id="secret-stage" hidden>
       <h1 class="vaulted-title">Here it <span class="marbl-accent">is.</span></h1>
-      <p class="vaulted-tagline">Copy it now. Once you confirm below, this page can't show it again.</p>
-      <pre id="secret-text" tabindex="-1" role="region" aria-live="polite" aria-atomic="true" aria-label="Decrypted secret"></pre>
-      <div class="vaulted-action-row">
-        <button type="button" id="copy-secret-btn" class="btn btn--fill-up">Copy secret</button>
-        <button type="button" id="confirm-btn" class="btn btn--ghost">I've got it - destroy</button>
+      <p class="vaulted-tagline">Copy your secret now. Once you have it, click destroy!</p>
+      <div class="vaulted-secret-display">
+        <pre id="secret-text" tabindex="-1" role="region" aria-live="polite" aria-atomic="true" aria-label="Decrypted secret"></pre>
+        <div class="vaulted-action-row">
+          <button type="button" id="copy-secret-btn" class="btn btn--fill-up">
+            Copy secret
+            <span class="btn__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </span>
+          </button>
+          <button type="button" id="confirm-btn" class="btn btn--read-more">
+            I've got it - destroy
+            <span class="btn__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            </span>
+          </button>
+        </div>
       </div>
       <p class="vaulted-meta">The server's copy was destroyed the moment you revealed it. This page is the last copy.</p>
     </section>

@@ -196,8 +196,9 @@ textarea.vaulted-textarea:focus {
 .vaulted-action-row {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--gap-xs);
+  gap: var(--gap-sm);
   align-items: center;
+  justify-content: center;
 }
 
 /* Copied state - solid ember, locked. Suppress the .btn--fill-up ::before
