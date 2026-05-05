@@ -8,33 +8,21 @@
   <meta name="theme-color" content="#171415">
   <meta name="robots" content="noindex, nofollow">
 
-  <!-- Favicons -->
   <link rel="icon" type="image/svg+xml" href="https://marbl.codes/assets/icons/favicon.svg">
   <link rel="icon" type="image/png" sizes="96x96" href="https://marbl.codes/assets/icons/favicon-96x96.png">
 
-  <!-- Marbl canonical fonts. SRI-pinned. -->
   <link rel="stylesheet" href="https://marbl.codes/components/marbl-fonts/marbl-fonts.css"
-        integrity="sha384-kJwdz6vK98oNIjVANrdXeMRJQxRCyxnNh9eCdoYapeGY6LAHs4V4CAV9tlyy6gBY"
+        integrity="sha384-HMxcOHY88kijG0C99lkMyxcD3txKDoYQl+t3McnC13XrDWp7gGqkgH39dxCYn7GY"
         crossorigin="anonymous">
 
-  <!-- Marbl canonical core. SRI-pinned - the recipient page holds plaintext;
-       cross-origin scripts must be cryptographically verified. -->
   <link rel="stylesheet" href="https://marbl.codes/core/marbl-core.css"
-        integrity="sha384-OvoRiROIQioqArp9kf0pDkJWHctoizj0ykzbB/VpYZRW3ZoB+cSLludseZvx/Y4u"
+        integrity="sha384-rxIFA8lQVWooG3omRdi+Q+dThnCDMqKmqSrmzbto3l626veo2mbsAyfPjpZSLuzQ"
         crossorigin="anonymous">
 
-  <!-- Page-specific styles -->
   <link rel="stylesheet" href="/style.css">
-
-  <!-- NO analytics on the recipient page. Plaintext lives in the DOM here.
-       Even same-origin-proxied analytics is a third-party trust boundary
-       hidden behind a 'self' URL: a compromised cdn.usefathom.com would
-       still serve compromised code from our origin with full DOM access.
-       Track sender events on /, never recipient events on /v/*. -->
 </head>
 <body data-page="recipient">
 
-  <!-- Canonical site header -->
   <header class="site-header">
     <div class="site-header__left">
       <a href="/" class="marbl-logo" data-logo-animate aria-label="Marbl Codes homepage"></a>
@@ -50,7 +38,6 @@
     </div>
   </header>
 
-  <!-- Canonical menu overlay -->
   <div class="menu-overlay" id="menu-overlay" role="dialog" aria-modal="true" aria-label="Site navigation">
     <div class="menu-overlay__panel menu-overlay__panel--back"></div>
     <div class="menu-overlay__panel menu-overlay__panel--front"></div>
@@ -109,7 +96,6 @@
   <main class="vaulted-main" id="main">
     <p class="vaulted-label">Marbl Vaulted</p>
 
-    <!-- Reveal stage: prompt the recipient to reveal the secret -->
     <section id="reveal-stage">
       <h1 class="vaulted-title">A secret for <span class="marbl-accent">you!</span></h1>
       <p class="vaulted-tagline">
@@ -123,7 +109,6 @@
       </button>
     </section>
 
-    <!-- Secret stage: shows decrypted text + copy/confirm buttons -->
     <section id="secret-stage" hidden>
       <h1 class="vaulted-title">Here it <span class="marbl-accent">is.</span></h1>
       <p class="vaulted-tagline">Copy your secret now. Once you have it, click destroy!</p>
@@ -147,7 +132,6 @@
       <p class="vaulted-meta">The server's copy was destroyed the moment you revealed it. This page is the last copy.</p>
     </section>
 
-    <!-- Success stage: confirmation that the secret is gone -->
     <section id="success-stage" hidden>
       <h1 class="vaulted-title">Gone for <span class="marbl-accent">good.</span></h1>
       <p class="vaulted-tagline">
@@ -159,7 +143,6 @@
     <section class="vaulted-error" id="error-stage" hidden role="alert" aria-live="assertive"></section>
   </main>
 
-  <!-- Canonical site footer -->
   <footer class="site-footer">
     <div class="footer-left">
       <a href="/about" class="footer-avatar" aria-label="About Richard Bland" title="About">
@@ -194,7 +177,7 @@
           integrity="sha384-pEQB1h4Zmn9xhS6jotzltHSIQq6N0Oh3BXkCNOH5LKI81R2NRbb9efarAJYw9gTY"
           crossorigin="anonymous" defer></script>
   <script src="https://marbl.codes/core/marbl-core.js"
-          integrity="sha384-2Htn/e2etxIFn7AKuDsmHlAeXKrTsYayA+FGHlRu2stlpw9q7zTl1751dZrN+Qpn"
+          integrity="sha384-LN0ma7QLaRE1QXTMvZK5fTs37+9YLOK05pssWuE1XPXlO7VD0Eafh7ze5a+ZrhEb"
           crossorigin="anonymous" defer></script>
   <script src="/app.js" defer></script>
 </body>

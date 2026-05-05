@@ -8,11 +8,9 @@
   <meta name="theme-color" content="#171415">
   <link rel="canonical" href="https://vaulted.marbl.codes/">
 
-  <!-- Favicons -->
   <link rel="icon" type="image/svg+xml" href="https://marbl.codes/assets/icons/favicon.svg">
   <link rel="icon" type="image/png" sizes="96x96" href="https://marbl.codes/assets/icons/favicon-96x96.png">
 
-  <!-- Open Graph -->
   <meta property="og:title" content="Vaulted | Marbl Codes">
   <meta property="og:description" content="Free one-time encrypted secret share. End-to-end encrypted in your browser, destroyed on reveal.">
   <meta property="og:type" content="website">
@@ -21,13 +19,11 @@
   <meta property="og:locale" content="en_GB">
   <meta property="og:site_name" content="Marbl Codes">
 
-  <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Vaulted | Marbl Codes">
   <meta name="twitter:description" content="Free one-time encrypted secret share. End-to-end encrypted in your browser, destroyed on reveal.">
   <meta name="twitter:image" content="https://marbl.codes/assets/images/marbl-codes-og.png">
 
-  <!-- Schema.org JSON-LD -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -59,32 +55,19 @@
   }
   </script>
 
-  <!-- Marbl canonical fonts. SRI-pinned. If marbl.codes serves different
-       content, browser refuses to apply the stylesheet. -->
   <link rel="stylesheet" href="https://marbl.codes/components/marbl-fonts/marbl-fonts.css"
-        integrity="sha384-kJwdz6vK98oNIjVANrdXeMRJQxRCyxnNh9eCdoYapeGY6LAHs4V4CAV9tlyy6gBY"
+        integrity="sha384-HMxcOHY88kijG0C99lkMyxcD3txKDoYQl+t3McnC13XrDWp7gGqkgH39dxCYn7GY"
         crossorigin="anonymous">
 
-  <!-- Marbl canonical core (chrome, scrollbar, cursor, tokens, buttons). SRI-pinned. -->
   <link rel="stylesheet" href="https://marbl.codes/core/marbl-core.css"
-        integrity="sha384-OvoRiROIQioqArp9kf0pDkJWHctoizj0ykzbB/VpYZRW3ZoB+cSLludseZvx/Y4u"
+        integrity="sha384-rxIFA8lQVWooG3omRdi+Q+dThnCDMqKmqSrmzbto3l626veo2mbsAyfPjpZSLuzQ"
         crossorigin="anonymous">
 
-  <!-- Page-specific styles -->
   <link rel="stylesheet" href="/style.css">
-
-  <!-- NO analytics on the sender page. The user types the secret into
-       textarea#secret BEFORE encryption - plaintext lives in the DOM here,
-       same as the recipient page. Even same-origin-proxied analytics is a
-       third-party trust boundary hidden behind a 'self' URL: a compromised
-       cdn.usefathom.com would still serve compromised code from our origin
-       with full DOM access to the secret-in-progress. Truth #94 plus the
-       Moirai-2 truth (proxying != trust reduction). -->
 
 </head>
 <body data-page="sender">
 
-  <!-- Canonical site header -->
   <header class="site-header">
     <div class="site-header__left">
       <a href="/" class="marbl-logo" data-logo-animate aria-label="Marbl Codes homepage"></a>
@@ -100,7 +83,6 @@
     </div>
   </header>
 
-  <!-- Canonical menu overlay - LEFT pane is site-specific (Vaulted), RIGHT pane is ecosystem -->
   <div class="menu-overlay" id="menu-overlay" role="dialog" aria-modal="true" aria-label="Site navigation">
     <div class="menu-overlay__panel menu-overlay__panel--back"></div>
     <div class="menu-overlay__panel menu-overlay__panel--front"></div>
@@ -156,7 +138,6 @@
     </div>
   </div>
 
-  <!-- Centred password tool, mirrors Atlas's holding-main pattern -->
   <main class="vaulted-main" id="main">
     <p class="vaulted-label">Marbl Vaulted</p>
     <h1 class="vaulted-title">Share a secret, <span class="marbl-accent">once</span></h1>
@@ -190,7 +171,6 @@
     <section class="vaulted-error" id="error-stage" hidden role="alert" aria-live="assertive"></section>
   </main>
 
-  <!-- Canonical site footer -->
   <footer class="site-footer">
     <div class="footer-left">
       <a href="/about" class="footer-avatar" aria-label="About Richard Bland" title="About">
@@ -221,20 +201,14 @@
     </div>
   </footer>
 
-  <!-- GSAP for canonical chrome animations. SRI-pinned to GSAP 3.12.7. -->
   <script src="https://marbl.codes/vendor/gsap/3.12.7/gsap.min.js"
           integrity="sha384-pEQB1h4Zmn9xhS6jotzltHSIQq6N0Oh3BXkCNOH5LKI81R2NRbb9efarAJYw9gTY"
           crossorigin="anonymous" defer></script>
 
-  <!-- Marbl Core (logo animation, menu overlay, cookie consent, custom scrollbar/cursor). SRI-pinned.
-       If marbl.codes serves different bytes, browser refuses to execute - we get a visible
-       failure rather than silently running potentially compromised code with full DOM access
-       to a page that may hold plaintext (the secret typed before encryption). -->
   <script src="https://marbl.codes/core/marbl-core.js"
-          integrity="sha384-2Htn/e2etxIFn7AKuDsmHlAeXKrTsYayA+FGHlRu2stlpw9q7zTl1751dZrN+Qpn"
+          integrity="sha384-LN0ma7QLaRE1QXTMvZK5fTs37+9YLOK05pssWuE1XPXlO7VD0Eafh7ze5a+ZrhEb"
           crossorigin="anonymous" defer></script>
 
-  <!-- Vaulted page logic -->
   <script src="/app.js" defer></script>
 </body>
 </html>

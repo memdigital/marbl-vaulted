@@ -1,6 +1,4 @@
 /* eslint-env browser */
-/* Marbl Vaulted - client-side AES-GCM-256 + clipboard handling.
-   No external libraries. Web Crypto only. */
 (() => {
   'use strict';
 
@@ -27,17 +25,12 @@
     return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
   };
 
-  // SHA-256 of an input string -> base64url. Used to hash the verifier
-  // client-side so the server stores only the hash, not the verifier itself.
   const sha256B64Url = async (input) => {
     const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
     return b64encode(new Uint8Array(buf));
   };
 
   const b64decode = (str) => {
-    // Correct padding: append (4 - len%4) % 4 equals signs.
-    // The previous formula '==='.slice((str.length+3)%4) silently appended
-    // a stray '=' on length-multiple-of-4 inputs, breaking IV decode.
     const padding = '='.repeat((4 - (str.length % 4)) % 4);
     const padded = str.replace(/-/g, '+').replace(/_/g, '/') + padding;
     const bin = atob(padded);
@@ -46,9 +39,6 @@
     return bytes;
   };
 
-  // Visually-hidden live region for AT announcements. Created once at boot
-  // (NVDA in particular needs aria-live regions present in the DOM at page
-  // load to register them - lazy creation on first use can miss).
   const ensureLiveRegion = () => {
     let region = document.getElementById('a11y-live');
     if (region) return region;
@@ -61,9 +51,9 @@
     document.body.appendChild(region);
     return region;
   };
+
   const announceLive = (msg) => {
     const region = ensureLiveRegion();
-    // Re-empty then set so AT re-announces even on repeat.
     region.textContent = '';
     setTimeout(() => { region.textContent = msg; }, 50);
   };
@@ -81,10 +71,7 @@
     }, 2000);
   };
 
-  // Click-to-copy. MUST be called synchronously inside a click handler so the user-gesture
-  // requirement on navigator.clipboard.writeText is satisfied.
   const copyToClipboard = async (text, btn) => {
-    // Try the modern clipboard API first.
     if (navigator.clipboard && navigator.clipboard.writeText) {
       try {
         await navigator.clipboard.writeText(text);
@@ -92,7 +79,6 @@
         return true;
       } catch (_) { /* fall through */ }
     }
-    // Fallback: temporary textarea + execCommand('copy').
     try {
       const ta = document.createElement('textarea');
       ta.value = text;
@@ -119,7 +105,6 @@
     return false;
   };
 
-  // === Sender flow ===
   const initSender = () => {
     const formStage = $('form-stage');
     const resultStage = $('result-stage');
@@ -162,9 +147,6 @@
         );
         const exportedKey = await crypto.subtle.exportKey('raw', key);
 
-        // Verifier: 16 random bytes the recipient will present to prove
-        // knowledge of the URL fragment before the server burns the entry.
-        // The server stores only its SHA-256 hash, not the verifier itself.
         const verifierBytes = crypto.getRandomValues(new Uint8Array(16));
         const verifierB64 = b64encode(verifierBytes);
         const verifierHash = await sha256B64Url(verifierB64);
@@ -190,8 +172,6 @@
         }
         const { id } = await res.json();
         const keyB64 = b64encode(new Uint8Array(exportedKey));
-        // Both key (for decryption) AND verifier (for proof-of-knowledge)
-        // travel in the URL fragment. Neither reaches the server via the URL.
         const url = `${window.location.origin}/v/${id}#k=${keyB64}&v=${verifierB64}`;
 
         resultUrl.textContent = url;
@@ -199,7 +179,6 @@
         show(resultStage);
         fathom('vault-it-success');
 
-        // Wipe the input.
         secretInput.value = '';
       } catch (err) {
         showError(errorStage, (err && err.message) ? err.message : 'Something went wrong.');
@@ -230,10 +209,6 @@
     }
   };
 
-  // === Recipient flow ===
-  // CRITICAL: reveal MUST require an explicit user gesture (button click).
-  // DO NOT auto-fire fetch('/api/reveal/...') on page load - email scanners
-  // and link-preview bots will burn the secret before the recipient sees it.
   const initRecipient = () => {
     const revealStage = $('reveal-stage');
     const secretStage = $('secret-stage');
@@ -243,38 +218,24 @@
     const copySecretBtn = $('copy-secret-btn');
     const confirmBtn = $('confirm-btn');
     const secretText = $('secret-text');
-    const copyStatus = $('copy-status');
 
     if (!revealBtn) return;
 
     const pathParts = window.location.pathname.split('/').filter(Boolean);
-    // Path is /v/{id} - id must be the segment after "v" (16-char base64url).
     const id = (pathParts[0] === 'v' && pathParts.length >= 2) ? pathParts[1] : '';
     const fragment = window.location.hash.slice(1);
     const params = new URLSearchParams(fragment);
     const keyB64 = params.get('k');
     const verifierB64 = params.get('v');
 
-    // Capture the key into a closure variable, then strip the fragment from
-    // the URL IMMEDIATELY (not on success). Eliminates the error-path leak
-    // where a failed decrypt left the AES key persisted in browser history.
-    // Preserve query string in case future UTM-tagged share links arrive.
-    // FAIL CLOSED: if replaceState throws (sandboxed iframe, extension
-    // context), the key would persist in the URL bar. Refuse to proceed -
-    // the security model relies on the fragment being stripped.
     try {
       history.replaceState(null, '', window.location.pathname + window.location.search);
     } catch (e) {
-      console.error('[vaulted] history.replaceState failed; refusing to proceed', e);
       hide(revealStage);
-      showError(errorStage, "Your browser blocked a security step. Refresh the page or open the link in a different browser.");
+      showError(errorStage, "Your browser blocked a step. Open the link in a different browser.");
       return;
     }
 
-    // Validate id, AES key, AND verifier client-side BEFORE reveal can fire.
-    // Server requires the verifier to authorise destructive read - a malformed
-    // verifier means the server will return 404, the secret stays alive.
-    // 256-bit AES key = 43 base64url chars. 16-byte verifier = 22 base64url chars.
     const ID_PATTERN = /^[A-Za-z0-9_-]{16}$/;
     const KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/;
     const VERIFIER_PATTERN = /^[A-Za-z0-9_-]{22}$/;
@@ -300,9 +261,6 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ verifier: verifierB64 }),
         });
-        // Server returns generic 404 for every failure (not_found, invalid_id,
-        // rate_limited, missing IP) so attackers can't enumerate state.
-        // We surface the most likely human cause to the user.
         if (!res.ok) {
           throw new Error('This secret has already been revealed, expired, or the link is malformed.');
         }
@@ -329,9 +287,6 @@
         secretText.textContent = plaintext;
         hide(revealStage);
         show(secretStage);
-
-        // Move focus to the secret block so screen readers announce it.
-        // <pre> needs tabindex="-1" in v.html for .focus() to actually work.
         secretText.focus();
 
         fathom('reveal-success');
@@ -351,7 +306,6 @@
 
     if (confirmBtn) {
       confirmBtn.addEventListener('click', () => {
-        // Wipe the in-DOM copy of the secret. The server-side entry was already destroyed at reveal time.
         if (secretText) secretText.textContent = '';
         hide(secretStage);
         show(successStage);
@@ -360,10 +314,7 @@
     }
   };
 
-  // Boot
   document.addEventListener('DOMContentLoaded', () => {
-    // Create the AT live region at page load so screen readers register it
-    // before any flashCopy / announceLive call.
     ensureLiveRegion();
     if (document.body.dataset.page === 'recipient') {
       initRecipient();
