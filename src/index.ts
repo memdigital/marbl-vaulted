@@ -136,6 +136,12 @@ const IV_B64_LENGTH = 16;
 const VERIFIER_HASH_LENGTH = 43;
 const VERIFIER_LENGTH = 22; // 16 raw bytes -> 22 base64url chars
 
+// Fixed 43-char base64url placeholder (32 zero bytes encoded). Used as the
+// compare target on the no-row path so reveal does identical hash + compare
+// work whether the id exists or not. Equalises timing so a network observer
+// cannot distinguish "no row" from "row exists, wrong verifier" by latency.
+const DUMMY_VERIFIER_HASH = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+
 // Constant-time comparison of two equal-length strings. Branch-free byte
 // xor accumulator - prevents an attacker timing the hash compare.
 function constantTimeEqual(a: string, b: string): boolean {
@@ -156,72 +162,83 @@ async function sha256B64Url(input: string): Promise<string> {
 }
 
 async function handleStore(request: Request, env: Env): Promise<Response> {
-  if (!requireSameOrigin(request)) {
-    return jsonResponse({ error: 'forbidden' }, 403);
-  }
-  // Reject if Cloudflare didn't supply the IP - belt-and-braces against an
-  // edge misconfiguration where every request would share the 'unknown' bucket.
-  const ip = request.headers.get('cf-connecting-ip');
-  if (!ip) {
-    return jsonResponse({ error: 'forbidden' }, 403);
-  }
-
-  // Reject oversized bodies BEFORE parsing JSON (cheap server protection).
-  // Rough budget: max ciphertext + iv + JSON wrapper overhead ≈ 25KB worst case.
-  const contentLength = request.headers.get('content-length');
-  if (contentLength && parseInt(contentLength, 10) > 32 * 1024) {
-    return jsonResponse({ error: 'too_large' }, 413);
-  }
-
-  const limited = await env.RATE_LIMIT_STORE.limit({ key: `store:${ip}` });
-  if (!limited.success) {
-    return jsonResponse({ error: 'rate_limited' }, 429);
-  }
-
-  let body: { ciphertext?: unknown; iv?: unknown; verifierHash?: unknown };
+  // Outer try/catch is the safety net: any unexpected throw (D1 outage,
+  // edge runtime quirk, transient JSON edge-case the inner try missed) gets
+  // collapsed to a generic 500 with a server-side log. Without this, an
+  // unhandled exception bubbles to the top-level fetch handler and risks
+  // returning a stack trace or platform error page - breaking the opaque
+  // error contract. Truth #10. Earned in Moirai-6.
   try {
-    body = (await request.json()) as { ciphertext?: unknown; iv?: unknown; verifierHash?: unknown };
-  } catch {
-    return jsonResponse({ error: 'invalid_payload' }, 400);
-  }
+    if (!requireSameOrigin(request)) {
+      return jsonResponse({ error: 'forbidden' }, 403);
+    }
+    // Reject if Cloudflare didn't supply the IP - belt-and-braces against an
+    // edge misconfiguration where every request would share the 'unknown' bucket.
+    const ip = request.headers.get('cf-connecting-ip');
+    if (!ip) {
+      return jsonResponse({ error: 'forbidden' }, 403);
+    }
 
-  if (
-    typeof body.ciphertext !== 'string' ||
-    typeof body.iv !== 'string' ||
-    typeof body.verifierHash !== 'string'
-  ) {
-    return jsonResponse({ error: 'invalid_payload' }, 400);
-  }
-  // Charset + length checks.
-  if (
-    !B64URL_PATTERN.test(body.ciphertext) ||
-    !B64URL_PATTERN.test(body.iv) ||
-    !B64URL_PATTERN.test(body.verifierHash)
-  ) {
-    return jsonResponse({ error: 'invalid_payload' }, 400);
-  }
-  if (body.iv.length !== IV_B64_LENGTH) {
-    return jsonResponse({ error: 'invalid_payload' }, 400);
-  }
-  if (body.verifierHash.length !== VERIFIER_HASH_LENGTH) {
-    return jsonResponse({ error: 'invalid_payload' }, 400);
-  }
-  if (body.ciphertext.length === 0) {
-    return jsonResponse({ error: 'invalid_payload' }, 400);
-  }
-  if (body.ciphertext.length > MAX_CIPHERTEXT_B64_CHARS) {
-    return jsonResponse({ error: 'too_large' }, 413);
-  }
+    // Reject oversized bodies BEFORE parsing JSON (cheap server protection).
+    // Rough budget: max ciphertext + iv + JSON wrapper overhead ≈ 25KB worst case.
+    const contentLength = request.headers.get('content-length');
+    if (contentLength && parseInt(contentLength, 10) > 32 * 1024) {
+      return jsonResponse({ error: 'too_large' }, 413);
+    }
 
-  const id = generateId();
-  const expiresAt = Math.floor(Date.now() / 1000) + TTL_SECONDS;
-  await env.DB.prepare(
-    'INSERT INTO secrets (id, c, i, h, expires_at) VALUES (?, ?, ?, ?, ?)',
-  )
-    .bind(id, body.ciphertext, body.iv, body.verifierHash, expiresAt)
-    .run();
+    const limited = await env.RATE_LIMIT_STORE.limit({ key: `store:${ip}` });
+    if (!limited.success) {
+      return jsonResponse({ error: 'rate_limited' }, 429);
+    }
 
-  return jsonResponse({ id });
+    let body: { ciphertext?: unknown; iv?: unknown; verifierHash?: unknown };
+    try {
+      body = (await request.json()) as { ciphertext?: unknown; iv?: unknown; verifierHash?: unknown };
+    } catch {
+      return jsonResponse({ error: 'invalid_payload' }, 400);
+    }
+
+    if (
+      typeof body.ciphertext !== 'string' ||
+      typeof body.iv !== 'string' ||
+      typeof body.verifierHash !== 'string'
+    ) {
+      return jsonResponse({ error: 'invalid_payload' }, 400);
+    }
+    // Charset + length checks.
+    if (
+      !B64URL_PATTERN.test(body.ciphertext) ||
+      !B64URL_PATTERN.test(body.iv) ||
+      !B64URL_PATTERN.test(body.verifierHash)
+    ) {
+      return jsonResponse({ error: 'invalid_payload' }, 400);
+    }
+    if (body.iv.length !== IV_B64_LENGTH) {
+      return jsonResponse({ error: 'invalid_payload' }, 400);
+    }
+    if (body.verifierHash.length !== VERIFIER_HASH_LENGTH) {
+      return jsonResponse({ error: 'invalid_payload' }, 400);
+    }
+    if (body.ciphertext.length === 0) {
+      return jsonResponse({ error: 'invalid_payload' }, 400);
+    }
+    if (body.ciphertext.length > MAX_CIPHERTEXT_B64_CHARS) {
+      return jsonResponse({ error: 'too_large' }, 413);
+    }
+
+    const id = generateId();
+    const expiresAt = Math.floor(Date.now() / 1000) + TTL_SECONDS;
+    await env.DB.prepare(
+      'INSERT INTO secrets (id, c, i, h, expires_at) VALUES (?, ?, ?, ?, ?)',
+    )
+      .bind(id, body.ciphertext, body.iv, body.verifierHash, expiresAt)
+      .run();
+
+    return jsonResponse({ id });
+  } catch (err) {
+    console.error('[vaulted] handleStore unexpected error:', err);
+    return jsonResponse({ error: 'server_error' }, 500);
+  }
 }
 
 // Reveal collapses every failure to a single opaque 404 on the wire so
@@ -231,6 +248,11 @@ async function handleReveal(id: string, request: Request, env: Env): Promise<Res
   // Same generic 404 for every failure path.
   const opaqueNotFound = () => jsonResponse({ error: 'not_found' }, 404);
 
+  // Outer try/catch: any unexpected throw (D1 outage, transient runtime
+  // error) MUST collapse to the opaque 404 - not a 500. A 500 would let an
+  // attacker distinguish "server choked while looking up id X" from regular
+  // 404s, leaking existence/state. Earned in Moirai-6.
+  try {
   // CSRF burn defence - cross-origin reveal calls would burn a legitimate
   // user's secret without yielding plaintext to the attacker (opaque fetch).
   // Reject BEFORE rate-limit so it doesn't drain the bucket.
@@ -283,27 +305,33 @@ async function handleReveal(id: string, request: Request, env: Env): Promise<Res
   )
     .bind(id)
     .first<{ c: string; i: string; h: string }>();
-  if (!stored) {
-    return opaqueNotFound();
-  }
+  // Timing equalisation: ALWAYS compute the candidate hash and ALWAYS run
+  // constantTimeEqual, even when no row exists. Compare against a fixed dummy
+  // hash on the no-row path so latency cannot distinguish "row exists, wrong
+  // verifier" from "no row at all". Earned in Moirai-6: opaque 404 is only
+  // opaque if the WORK done before the response is identical on every path.
   const candidateHash = await sha256B64Url(candidate);
-  if (!constantTimeEqual(candidateHash, stored.h)) {
+  const compareTarget = stored ? stored.h : DUMMY_VERIFIER_HASH;
+  const hashOk = constantTimeEqual(candidateHash, compareTarget);
+  if (!stored || !hashOk) {
     return opaqueNotFound();
   }
 
   // Verifier matched - destructive read. D1 DELETE...RETURNING is genuinely
-  // atomic: only one concurrent reveal can win the row. The peek-then-delete
-  // race window between SELECT and DELETE is microscopic, and any caller in
-  // it already has the verifier (and therefore the AES key in the URL
-  // fragment), so they can decrypt the ciphertext anyway. Truth #76: the
-  // URL is the secret.
+  // atomic: only one concurrent reveal can win the row. WHERE re-checks
+  // expires_at so a row that expired between SELECT and DELETE is not handed
+  // out (Moirai-6 catch). The peek-then-delete race window is microscopic,
+  // and any caller in it already has the verifier (and therefore the AES
+  // key in the URL fragment), so they can decrypt the ciphertext anyway.
+  // Truth #76: the URL is the secret.
   const deleted = await env.DB.prepare(
-    'DELETE FROM secrets WHERE id = ? RETURNING c, i',
+    'DELETE FROM secrets WHERE id = ? AND expires_at > unixepoch() RETURNING c, i',
   )
     .bind(id)
     .first<{ c: string; i: string }>();
   if (!deleted) {
-    // Lost the race to another concurrent reveal. Same opaque 404.
+    // Lost the race to another concurrent reveal, or row expired between
+    // SELECT and DELETE. Same opaque 404.
     return opaqueNotFound();
   }
 
@@ -314,6 +342,10 @@ async function handleReveal(id: string, request: Request, env: Env): Promise<Res
       ...NO_STORE_HEADERS,
     },
   });
+  } catch (err) {
+    console.error('[vaulted] handleReveal unexpected error:', err);
+    return opaqueNotFound();
+  }
 }
 
 // Fathom proxy: forwards anything under /fathom-proxy/<rest> to
@@ -473,16 +505,31 @@ export default {
   // Hourly cron sweeps any expired rows. Reveal already filters expired rows
   // via WHERE expires_at > unixepoch(), so this is purely housekeeping to
   // keep the table small and stop expired ciphertext sitting in storage past
-  // its TTL.
+  // its TTL. Bounded by LIMIT so a worst-case backlog (D1 statement timeout
+  // territory) cannot silently fail; if we hit the cap we log a warning and
+  // the next cron picks up the rest. Truth #70: failures must be visible.
   async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
     const missing = requireBindings(env);
     if (missing) {
       console.error(`[vaulted] cron missing binding: ${missing}`);
       return;
     }
+    const CRON_SWEEP_LIMIT = 10000;
+    // SQLite needs DELETE...LIMIT compiled in (D1 has it). The subselect form
+    // works on every SQLite build, so we use that for portability.
     const result = await env.DB.prepare(
-      'DELETE FROM secrets WHERE expires_at <= unixepoch()',
-    ).run();
-    console.log(`[vaulted] cron swept ${result.meta?.changes ?? 0} expired row(s)`);
+      `DELETE FROM secrets WHERE id IN (
+         SELECT id FROM secrets WHERE expires_at <= unixepoch() LIMIT ?
+       )`,
+    )
+      .bind(CRON_SWEEP_LIMIT)
+      .run();
+    const swept = result.meta?.changes ?? 0;
+    console.log(`[vaulted] cron swept ${swept} expired row(s)`);
+    if (swept >= CRON_SWEEP_LIMIT) {
+      console.warn(
+        `[vaulted] cron hit sweep cap (${CRON_SWEEP_LIMIT}) - backlog remains, next cron continues`,
+      );
+    }
   },
 };
